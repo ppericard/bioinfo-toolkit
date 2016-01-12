@@ -1,20 +1,37 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-#----------------------------------------------------------
-#--
-#-- author : Pierre Pericard
-#-- licence : GNU GPL 3.0
-#-- created : 2012-11-09
-#-- modified: 2015-01-11
-#--
-#----------------------------------------------------------
-#--
-#-- description : Get separately paired reads and singletons 
-#--                 from two fastq files (left and right)
-#--
-#-- get_pairs.py file1.fastq file2.fastq
-#--  
-#----------------------------------------------------------
+
+"""
+Get Pairs
+
+Description : Get separately paired reads and singletons 
+                from two fastq files (left and right)
+
+  get_pairs.py file1.fastq file2.fastq
+
+---------------------------------------------------------
+
+Author: This software is written and maintained by Pierre Pericard
+(pierre.pericard@ed.univ-lille1.fr)
+Created: 2012-11-09
+Last Modified: 2016-01-11
+Licence: GNU GPL 3.0
+
+Copyright 2013-2016 Pierre Pericard
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
 
 import argparse
 import sys
