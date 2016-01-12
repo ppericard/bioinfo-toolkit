@@ -7,4 +7,5 @@ This is a collection of useful scripts to analyse and format popular bioinformat
 ## Scripts
 
 * **get_pairs**: separates paired reads and singletons from two paired fastq files (left and right)
-* **GenerSampleFastx**: 2 scripts to generate sample files from fasta or fastq input files 
+* **generSampleFastx**: 2 scripts to generate sample files from fasta or fastq input files 
+* **atomicblastplus**: submit a massively parallel Blast+ job-array to a computer cluster running on Oracle Grid Engine (previously Sun Grid Engine)
