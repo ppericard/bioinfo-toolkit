@@ -80,8 +80,8 @@ if __name__ == '__main__':
             else :
                 basefilename = "right"
         
-        pfh = open(basefilename+'.paired.'+extension, 'w')
-        ufh = open(basefilename+'.unpaired.'+extension, 'w')
+        pfh = open(basefilename+'.paired.'+extension, 'w', 0)
+        ufh = open(basefilename+'.unpaired.'+extension, 'w', 0)
         with open(f, 'r') as fh:
             c = 0
             paired = False
