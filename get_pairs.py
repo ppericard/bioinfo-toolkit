@@ -9,7 +9,7 @@ Description : Get separately paired reads and singletons
 
   get_pairs.py file1.fastq file2.fastq
 
----------------------------------------------------------
+-----------------------------------------------------------------------
 
 Author: This software is written and maintained by Pierre Pericard
 (pierre.pericard@ed.univ-lille1.fr)
