@@ -1,4 +1,4 @@
-#! /usr/bin/python -u
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 """
@@ -84,7 +84,7 @@ if __name__ == '__main__':
                         type=argparse.FileType('r'), required=True,
                         help='input fasta file')
     parser.add_argument('-o', '--output_fasta', metavar='output', 
-                        type=argparse.FileType('w'), required=True,
+                        type=argparse.FileType('w', 0), required=True,
                         help='ouput fasta file')
     parser.add_argument('-s', '--stringtofind', metavar='string',
                         default='\&~"#\{\(\[-\|_\^@\)\]=\}', 
