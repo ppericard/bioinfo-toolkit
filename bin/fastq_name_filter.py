@@ -44,10 +44,10 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description='Filter a fastq file based on sequence name.')
     parser.add_argument('-i', '--input_fastq', metavar='input', 
-                        type=argparse.FileType('r'), required=True,
+                        type=argparse.FileType('r', 0), default='-',
                         help='input fastq file')
     parser.add_argument('-o', '--output_fastq', metavar='output', 
-                        type=argparse.FileType('w', 0), required=True,
+                        type=argparse.FileType('w', 0), default='-',
                         help='ouput fastq file')
     parser.add_argument('-s', '--stringtofind', metavar='string',
                         required=True, help='String to filter on')

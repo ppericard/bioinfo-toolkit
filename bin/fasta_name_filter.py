@@ -81,10 +81,10 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description='Filter a fasta file based on sequence name.')
     parser.add_argument('-i', '--input_fasta', metavar='input', 
-                        type=argparse.FileType('r'), required=True,
+                        type=argparse.FileType('r', 0), default='-',
                         help='input fasta file')
     parser.add_argument('-o', '--output_fasta', metavar='output', 
-                        type=argparse.FileType('w', 0), required=True,
+                        type=argparse.FileType('w', 0), default='-',
                         help='ouput fasta file')
     parser.add_argument('-s', '--stringtofind', metavar='string',
                         default='\&~"#\{\(\[-\|_\^@\)\]=\}', 
@@ -105,6 +105,7 @@ if __name__ == '__main__':
     tofind = re.compile(args.stringtofind, flags=re.IGNORECASE)
     
     for header, sequence in read_fasta_file_handle(args.input_fasta):
-        if (tofind.search(header) or (header in ids_set)):
+        seq_id = header.split()[0]
+        if (tofind.search(header) or (seq_id in ids_set)):
             args.output_fasta.write(">{0}\n{1}\n".format(header, format_seq(sequence)))
 
