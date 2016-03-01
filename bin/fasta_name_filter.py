@@ -87,25 +87,31 @@ if __name__ == '__main__':
                         type=argparse.FileType('w', 0), default='-',
                         help='ouput fasta file')
     parser.add_argument('-s', '--stringtofind', metavar='string',
-                        default='\&~"#\{\(\[-\|_\^@\)\]=\}', 
-                        help='String to filter on')
+                        type=str, help='String to filter on')
     parser.add_argument('-f', '--fileids', metavar='file',
                         type=argparse.FileType('r'),
                         help='File with ids')
     args = parser.parse_args()
     
-    ids_set = set()
-    ids_list = list()
+    if not args.stringtofind and not args.fileids:
+        parser.print_help()
+        raise Exception('Either a string or an id file has to be supplied')
     
     if args.fileids:
+        ids_list = list()
+        # read ids and store them
         for line in args.fileids:
             ids_list.append(line.strip())
-        ids_set = set(ids_list)
-    
-    tofind = re.compile(args.stringtofind, flags=re.IGNORECASE)
-    
-    for header, sequence in read_fasta_file_handle(args.input_fasta):
-        seq_id = header.split()[0]
-        if (tofind.search(header) or (seq_id in ids_set)):
-            args.output_fasta.write(">{0}\n{1}\n".format(header, format_seq(sequence)))
+        # convert the id list to a frozenset for fast search
+        ids_set = frozenset(ids_list)
+        # filter the fasta file
+        for header, sequence in read_fasta_file_handle(args.input_fasta):
+            seq_id = header.split()[0]
+            if seq_id in ids_set:
+                args.output_fasta.write(">{0}\n{1}\n".format(header, format_seq(sequence)))
+    else:
+        tofind = re.compile(args.stringtofind, flags=re.IGNORECASE)
+        for header, sequence in read_fasta_file_handle(args.input_fasta):
+            if tofind.search(header):
+                args.output_fasta.write(">{0}\n{1}\n".format(header, format_seq(sequence)))
 

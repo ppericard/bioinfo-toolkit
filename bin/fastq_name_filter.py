@@ -40,6 +40,32 @@ import argparse
 import string
 import re
 
+
+def read_fastq_file_handle(fastq_file_handle):
+    """
+    Parse a fastq file and return a generator
+    """
+    # Variables initialization
+    count = 0
+    header = ''
+    seq = ''
+    qual = ''
+    # Reading input file
+    for line in (l.strip() for l in fastq_file_handle if l.strip()):
+        count += 1
+        if count % 4 == 1:
+            if header:
+                yield header, seq, qual
+            header = line[1:]
+        elif count % 4 == 2:
+            seq = line
+        elif count % 4 == 0:
+            qual = line
+    yield header, seq, qual
+    # Close input file
+    fastq_file_handle.close()
+
+
 if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description='Filter a fastq file based on sequence name.')
@@ -50,27 +76,28 @@ if __name__ == '__main__':
                         type=argparse.FileType('w', 0), default='-',
                         help='ouput fastq file')
     parser.add_argument('-s', '--stringtofind', metavar='string',
-                        required=True, help='String to filter on')
+                        type=str, help='String to filter on')
+    parser.add_argument('-f', '--fileids', metavar='file',
+                        type=argparse.FileType('r'),
+                        help='File with ids')
     args = parser.parse_args()
     
-    tofind = re.compile(args.stringtofind, flags=re.IGNORECASE)
+    if not args.stringtofind and not args.fileids:
+        parser.print_help()
+        raise Exception('Either a string or an id file has to be supplied')
     
-    count = 0
-    buff = ''
-    to_write = False
-    
-    for line in args.input_fastq:
-        line = line.strip()
-        if line:
-            count += 1
-            if count % 4 == 1:
-                if to_write:
-                    args.output_fastq.write(buff)
-                to_write = False
-                buff = ''
-                if tofind.search(line):
-                    to_write = True
-            buff += "{0}\n".format(line)
-    # Last line
-    if to_write:
-        args.output_fastq.write(buff)
+    if args.fileids:
+        ids_list = list()
+        for line in args.fileids:
+            ids_list.append(line.strip())
+        ids_set = frozenset(ids_list)
+        for header, seq, qual in read_fastq_file_handle(args.input_fastq):
+            read_id = header.split()[0]
+            if read_id in ids_set:
+                args.output_fastq.write('@{0}\n{1}\n+\n{2}\n'.format(header, seq, qual))
+    else:
+        tofind = re.compile(args.stringtofind, flags=re.IGNORECASE)
+        for header, seq, qual in read_fastq_file_handle(args.input_fastq):
+            if tofind.search(header):
+                args.output_fastq.write('@{0}\n{1}\n+\n{2}\n'.format(header, seq, qual))
+
