@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
@@ -77,7 +77,7 @@ def format_seq(seq, linereturn=80):
     Format an input sequence
     """
     buff = list()
-    for i in xrange(0, len(seq), linereturn):
+    for i in range(0, len(seq), linereturn):
         buff.append("{0}\n".format(seq[i:(i + linereturn)]))
     return ''.join(buff).rstrip()
 
@@ -111,6 +111,6 @@ if __name__ == '__main__':
     
     # Read fastq file and write fasta sequences
     for header, seq, qual in read_fastq_file_handle(args.input_fastq):
-		args.output_fasta.write(">{0}\n".format(header))
-		args.output_fasta.write("{0}\n".format(format_seq(seq, 80)))
+        args.output_fasta.write(">{0}\n".format(header))
+        args.output_fasta.write("{0}\n".format(format_seq(seq, 80)))
     
