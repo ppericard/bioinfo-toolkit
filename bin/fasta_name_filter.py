@@ -2,23 +2,23 @@
 # -*- coding: utf-8 -*-
 
 """
-FastaNameFilter
+Fasta Name Filter
 
 Description: Filter a fasta file based on a string to find in the
                sequences headers, or given a file with a list of id
 
-  fastaNameFilter.py -i input.fa -o output.fa -s "stringtofind"
-  fastaNameFilter.py -i input.fa -o output.fa -f sequencesnames.ids
+  fasta_name_filter.py -i input.fa -o output.fa -p "pattern"
+  fasta_name_filter.py -i input.fa -o output.fa -f patterns.ids
 
 -----------------------------------------------------------------------
 
 Author: This software is written and maintained by Pierre Pericard
-(pierre.pericard@ed.univ-lille1.fr)
+(pierre.pericard@gmail.com)
 Created: 2014
-Last Modified: 2016-01-13
+Last Modified: 2017-02-12
 Licence: GNU GPL 3.0
 
-Copyright 2014-2016 Pierre Pericard
+Copyright 2014-2017 Pierre Pericard
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -33,7 +33,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-
 
 import sys
 import os
@@ -79,39 +78,85 @@ def format_seq(seq, linereturn=80):
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description='Filter a fasta file based on sequence name.')
-    parser.add_argument('-i', '--input_fasta', metavar='input',
-                        type=argparse.FileType('r'), default='-',
-                        help='input fasta file')
-    parser.add_argument('-o', '--output_fasta', metavar='output',
-                        type=argparse.FileType('w'), default='-',
-                        help='ouput fasta file')
-    parser.add_argument('-s', '--stringtofind', metavar='string',
-                        type=str, help='String to filter on')
-    parser.add_argument('-f', '--fileids', metavar='file',
-                        type=argparse.FileType('r'),
-                        help='File with ids')
+    parser = argparse.ArgumentParser(description = 'Filter a fasta file based on pattern in the sequence name.')
+    # -i / --input_fasta
+    parser.add_argument('-i', '--input_fasta',
+                        action = 'store',
+                        metavar = 'PATH',
+                        type = argparse.FileType('r'),
+                        default = '-',
+                        help = 'Input fasta file')
+    # -o / --output_accepted
+    parser.add_argument('-o', '--output_accepted',
+                        action = 'store',
+                        metavar = 'PATH',
+                        type = argparse.FileType('w'),
+                        help = 'Output accepted fasta file')
+    # --output_rejected
+    parser.add_argument('--output_rejected',
+                        action = 'store',
+                        metavar = 'PATH',
+                        type = argparse.FileType('w'),
+                        help = 'Output rejected fasta file')
+    # -p / --pattern
+    parser.add_argument('-p', '--pattern',
+                        action = 'store',
+                        metavar = 'STR',
+                        type = str, 
+                        help = 'Pattern to find')
+    # -f / --patterns_file
+    parser.add_argument('-f', '--patterns_file',
+                        action = 'store',
+                        metavar = 'PATH',
+                        type = argparse.FileType('r'),
+                        help = 'File with patterns to find')
+    # --ids
+    parser.add_argument('--ids',
+                        action = 'store_true',
+                        help = 'Pattern(s) is/are sequence ids. '
+                               'Default is to search the pattern in the complete header')
+    #
     args = parser.parse_args()
 
-    if not args.stringtofind and not args.fileids:
+    # Check that at least a pattern or a file is provided
+    if not args.pattern and not args.patterns_file:
         parser.print_help()
-        raise Exception('Either a string or an id file has to be supplied')
+        raise Exception('A pattern or a patterns file has to be supplied')
 
-    if args.fileids:
-        ids_list = list()
-        # read ids and store them
-        for line in args.fileids:
-            ids_list.append(line.strip())
-        # convert the id list to a frozenset for fast search
-        ids_set = frozenset(ids_list)
-        # filter the fasta file
+    # If neither accepted nor rejected output filepath is provided
+    # revert to outputing accepted sequences to STDIN
+    if not (args.output_accepted or args.output_rejected):
+        args.output_accepted = sys.stdout
+    
+    # Store patterns
+    patterns_list = list()
+    if args.patterns_file:
+        # read patterns and store them
+        for pattern in (l.rstrip() for l in args.patterns_file if l.strip()):
+            patterns_list.append(pattern)
+    else:
+        patterns_list.append(args.pattern)
+
+
+    if args.ids:
+        # We search for exact ids matches
+        # Convert the patterns list to a frozenset for fast search
+        patterns_set = frozenset(patterns_list)
         for header, sequence in read_fasta_file_handle(args.input_fasta):
             seq_id = header.split()[0]
-            if seq_id in ids_set:
-                args.output_fasta.write(">{0}\n{1}\n".format(header, format_seq(sequence)))
+            if seq_id in patterns_set:
+                if args.output_accepted:
+                    args.output_accepted.write(">{0}\n{1}\n".format(header, format_seq(sequence)))
+            else:
+                if args.output_rejected:
+                    args.output_rejected.write(">{0}\n{1}\n".format(header, format_seq(sequence)))
     else:
-        tofind = re.compile(args.stringtofind, flags=re.IGNORECASE)
+        # We search for matches in the header
+        re_patterns = re.compile('|'.join(patterns_list), flags=re.IGNORECASE)
         for header, sequence in read_fasta_file_handle(args.input_fasta):
-            if tofind.search(header):
-                args.output_fasta.write(">{0}\n{1}\n".format(header, format_seq(sequence)))
-
+            if re_patterns.search(header):
+                if args.output_accepted:
+                    args.output_accepted.write(">{0}\n{1}\n".format(header, format_seq(sequence)))
+            else:
+                if args.output_rejected:
+                    args.output_rejected.write(">{0}\n{1}\n".format(header, format_seq(sequence)))
