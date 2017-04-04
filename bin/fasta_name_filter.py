@@ -81,40 +81,42 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'Filter a fasta file based on pattern in the sequence name.')
     # -i / --input_fasta
     parser.add_argument('-i', '--input_fasta',
-                        action = 'store',
-                        metavar = 'PATH',
-                        type = argparse.FileType('r'),
+                        action  = 'store',
+                        metavar = 'INFILE',
+                        type    = argparse.FileType('r'),
                         default = '-',
-                        help = 'Input fasta file')
+                        help    = 'Input fasta file')
     # -o / --output_accepted
     parser.add_argument('-o', '--output_accepted',
-                        action = 'store',
-                        metavar = 'PATH',
-                        type = argparse.FileType('w'),
-                        help = 'Output accepted fasta file')
+                        action   = 'store',
+                        metavar  = 'OUTFILE',
+                        type     = argparse.FileType('w'),
+                        required = False,
+                        help     = 'Output accepted fasta file')
     # --output_rejected
     parser.add_argument('--output_rejected',
-                        action = 'store',
-                        metavar = 'PATH',
-                        type = argparse.FileType('w'),
-                        help = 'Output rejected fasta file')
+                        action   = 'store',
+                        metavar  = 'OUTFILE',
+                        type     = argparse.FileType('w'),
+                        required = False,
+                        help     = 'Output rejected fasta file')
     # -p / --pattern
     parser.add_argument('-p', '--pattern',
-                        action = 'store',
+                        action  = 'store',
                         metavar = 'STR',
-                        type = str, 
-                        help = 'Pattern to find')
+                        type    = str,
+                        help    = 'Pattern to find')
     # -f / --patterns_file
     parser.add_argument('-f', '--patterns_file',
-                        action = 'store',
-                        metavar = 'PATH',
-                        type = argparse.FileType('r'),
-                        help = 'File with patterns to find')
+                        action  = 'store',
+                        metavar = 'INFILE',
+                        type    = argparse.FileType('r'),
+                        help    = 'File with patterns to find')
     # --ids
     parser.add_argument('--ids',
                         action = 'store_true',
-                        help = 'Pattern(s) is/are sequence ids. '
-                               'Default is to search the pattern in the complete header')
+                        help   = 'Pattern(s) is/are sequence ids. '
+                                 'Default is to search the pattern in the complete header')
     #
     args = parser.parse_args()
 
@@ -124,10 +126,10 @@ if __name__ == '__main__':
         raise Exception('A pattern or a patterns file has to be supplied')
 
     # If neither accepted nor rejected output filepath is provided
-    # revert to outputing accepted sequences to STDIN
+    # revert to outputing accepted sequences to STDOUT
     if not (args.output_accepted or args.output_rejected):
         args.output_accepted = sys.stdout
-    
+
     # Store patterns
     patterns_list = list()
     if args.patterns_file:
