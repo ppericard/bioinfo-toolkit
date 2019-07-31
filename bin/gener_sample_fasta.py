@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
@@ -77,20 +77,20 @@ def format_seq(seq, linereturn=80):
     return ''.join(buff).rstrip()
 
 if __name__ == '__main__':
-    
+
     random.seed(os.urandom(128))
-    
+
     # Arguments
-    parser = argparse.ArgumentParser(description='', 
+    parser = argparse.ArgumentParser(description='',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-i', '--input_fasta', metavar='input', 
+    parser.add_argument('-i', '--input_fasta', metavar='input',
                         type=argparse.FileType('r'), required=True,
                         help='input fasta file')
     parser.add_argument('-o', '--output_sample', metavar='sample',
-                        type=argparse.FileType('w', 0), required=True,
+                        type=argparse.FileType('w'), required=True,
                         help='ouput sample fasta file')
     parser.add_argument('--output_non_sample', metavar='nonsample',
-                        type=argparse.FileType('w', 0), required=False,
+                        type=argparse.FileType('w'), required=False,
                         help='ouput non sample fasta file')
     parser.add_argument('-p', '--proba', metavar='proba',
                         type=float, default=0.01,
@@ -98,7 +98,7 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--seq_nb', metavar='number',
                         type=int, help='Nb of sequences to keep')
     args = parser.parse_args()
-    
+
     if args.seq_nb:
         input_seq_nb = int(subprocess.check_output("grep -c '>' {0}".format(args.input_fasta.name), shell=True).strip())
         bool_list = [False for i in range(input_seq_nb)]
