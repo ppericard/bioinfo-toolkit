@@ -1,13 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
 """
 
 import argparse
+import numpy as np
+import matplotlib.pyplot as plt
 import pandas
-
-
 
 
 def read_fasta_file_handle(fasta_file_handle):
@@ -66,12 +66,30 @@ if __name__ == '__main__':
                              'Default is %(default)s')
     args = parser.parse_args()
     
-    # Code is duplicated here to prevent to have to test args.max_length many times
-    if args.max_length:
-        for header, sequence in read_fasta_file_handle(args.input_fasta):
-            if len(sequence) >= args.min_length and len(sequence) <= args.max_length:
-                args.output_fasta.write(">{0}\n{1}\n".format(header, format_seq(sequence)))
-    else:
-        for header, sequence in read_fasta_file_handle(args.input_fasta):
-            if len(sequence) >= args.min_length:
-                args.output_fasta.write(">{0}\n{1}\n".format(header, format_seq(sequence)))
+    #
+
+    length_series_list = list()
+    fasta_filename_list = list()
+    for fasta_file in args.input_fasta_files:
+        lengths = map(len, (sequence for header, sequence in read_fasta_file_handle(fasta_file)))
+        # print(fasta_file.name, list(lengths))
+        length_series_list.append(lengths)
+        fasta_filename_list.append(fasta_file.name)
+
+    print(fasta_filename_list)
+    print(length_series_list)
+
+
+    fig = plt.figure()
+
+    ax = pandas.Series(length_series_list[0]).hist(bins=100)
+    ax.set_yscale('log')
+    ax.set_xscale('log')
+
+    # fig.hist(length_series_list, histtype='bar')
+
+    fig.savefig(args.output_histo, format='pdf')
+
+
+
+
