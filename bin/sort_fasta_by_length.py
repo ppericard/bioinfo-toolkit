@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
@@ -6,18 +6,17 @@ sort_fasta_by_length
 
 Description: Sort a FastA file by sequence length (increasing by default)
 
-  sort_fasta_by_length.py -i input.fa -o output.fa
-  sort_fasta_by_length.py < input.fa > output.fa
+  sort_fasta_by_length.py --input input.fa --output output.fa
 
 -----------------------------------------------------------------------
 
 Author: This software is written and maintained by Pierre Pericard
-(pierre.pericard@ed.univ-lille1.fr)
+(pierre.pericard@univ-lille.fr)
 Created: 2015
-Last Modified: 2016-04-13
+Last Modified: 2023-04-21
 Licence: GNU GPL 3.0
 
-Copyright 2015-2016 Pierre Pericard
+Copyright 2015-2023 Pierre Pericard
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -34,90 +33,87 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import argparse
+import gzip
+import sys
+from io import TextIOWrapper
+from typing import TextIO, Tuple, Iterator
+import textwrap
 
 
-def read_fasta_file_handle(fasta_file_handle):
-    """
-    Parse a fasta file and return a generator
-    """
-    # Variables initialization
-    header = ''
-    seqlines = list()
-    sequence_nb = 0
-    # Reading input file
-    for line in (l.strip() for l in fasta_file_handle if l.strip()):
-        if line[0] == '>':
-            # Yield the last read header and sequence
-            if sequence_nb:
-                yield (header, ''.join(seqlines))
-                seqlines = list()
-            # Get header
-            header = line[1:]
-            sequence_nb += 1
+def is_gzip_file(file: TextIO) -> bool:
+    file.seek(0)
+    magic = file.read(2)
+    file.seek(0)
+    return magic == b"\x1f\x8b"
+
+
+def open_input_file(file: TextIO) -> TextIO:
+    return (
+        TextIOWrapper(gzip.open(file, "rt"))
+        if is_gzip_file(file)
+        else TextIOWrapper(file)
+    )
+
+
+def parse_fasta_sequences(file: TextIO) -> Iterator[Tuple[str, str]]:
+    header, sequence = None, []
+
+    for line in file:
+        line = line.rstrip()
+        if line.startswith(">"):
+            if header:
+                yield header, "".join(sequence)
+            header, sequence = line, []
         else:
-            # Concatenate sequence
-            seqlines.append(line)
-    # Yield the input file last sequence
-    yield (header, ''.join(seqlines))
-    # Close input file
-    fasta_file_handle.close()
+            sequence.append(line)
+
+    if header:
+        yield header, "".join(sequence)
 
 
-def format_seq(seq, linereturn=80):
-    """
-    Format an input sequence
-    """
-    buff = list()
-    for i in xrange(0, len(seq), linereturn):
-        buff.append("{0}\n".format(seq[i:(i + linereturn)]))
-    return ''.join(buff).rstrip()
+def sort_fasta_sequences(
+    input_file: TextIO, output_file: TextIO, *, reverse: bool = False
+):
+    with open_input_file(input_file) as file:
+        entries = parse_fasta_sequences(file)
+
+        if not entries:
+            raise ValueError("No fasta entries found in the input file.")
+
+        sorted_sequences = sorted(entries, key=lambda x: len(x[1]), reverse=reverse)
+
+    for header, sequence in sorted_sequences:
+        print(header, file=output_file)
+        print("\n".join(textwrap.wrap(sequence, 80)), file=output_file)
 
 
-if __name__ == '__main__':
-    
-    # Initiate argument parser
-    parser = argparse.ArgumentParser(description='Sort a fasta file by increasing sequence length.')
-    
-    # -i / --input_fasta
-    parser.add_argument('-i', '--input_fasta', 
-                        action='store',
-                        metavar='INFILE', 
-                        type=argparse.FileType('r'), 
-                        default='-',
-                        help="Input fasta file. "
-                             "Default is <stdin>")
-    
-    # -o / --output_fasta
-    parser.add_argument('-o', '--output_fasta',
-						action='store',
-                        metavar='OUTFILE', 
-                        type=argparse.FileType('w'), 
-                        default='-',
-                        help="Ouput fasta file. "
-							 "Default is <stdout>")
-    
-    # -r / --reverse
-    parser.add_argument('-r', '--reverse', 
-						action='store_true', 
-                        help='Sort by decreasing length')
-    
-    # Parse arguments from command line
+def main():
+    parser = argparse.ArgumentParser(
+        description="Sort a fasta file by sequence length."
+    )
+    parser.add_argument(
+        "--input",
+        type=argparse.FileType("rb"),
+        default=sys.stdin.buffer,
+        help="Input fasta file, plain text or gzipped. Default: stdin.",
+    )
+    parser.add_argument(
+        "--output",
+        type=argparse.FileType("w"),
+        default=sys.stdout,
+        help="Output sorted fasta file. Default: stdout.",
+    )
+    parser.add_argument(
+        "--reverse",
+        action="store_true",
+        help="Sort in descending order if set. Default: ascending.",
+    )
+
     args = parser.parse_args()
-    
-    # Variables initialization
-    seq_list = list()
-    
-    # Load all sequences
-    for header, sequence in read_fasta_file_handle(args.input_fasta):
-        seq_list.append((header, sequence))
-    
-    # Sort sequences by length
-    if args.reverse:
-        seq_list.sort(key=lambda x: len(x[1]), reverse=True)
-    else:
-        seq_list.sort(key=lambda x: len(x[1]))
-    
-    # Write sorted sequences to output file
-    for header, sequence in seq_list:
-        args.output_fasta.write(">{0}\n{1}\n".format(header, format_seq(sequence)))
+    sort_fasta_sequences(args.input, args.output, reverse=args.reverse)
+
+
+if __name__ == "__main__":
+    main()
+
 	
