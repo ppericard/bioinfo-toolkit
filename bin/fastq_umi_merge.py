@@ -62,7 +62,12 @@ if __name__ == "__main__":
         help="input fastq file",
     )
     parser.add_argument(
-        "-u", "--umi", metavar="UMIFQ", type=str, required=True, help="UMIs fastq file"
+        "-u", 
+        "--umi", 
+        metavar="UMIFQ", 
+        type=str, 
+        required=True, 
+        help="UMIs fastq file"
     )
     parser.add_argument(
         "-o",
@@ -80,31 +85,21 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    with open_fastq(args.input, "r") as input_fastq_filehandle, 
-         open_fastq(args.umi, "r") as umi_fastq_filehandle, 
+    with open_fastq(args.input, "r") as input_fastq_filehandle, \
+         open_fastq(args.umi, "r") as umi_fastq_filehandle, \
          open_fastq(args.output, "w") as output_fastq_filehandle:
         
         if args.header:
-            for (input_header, input_seq, input_qual), (
-                umi_header,
-                umi_seq,
-                umi_qual,
-            ) in zip(
-                parse_fastq(input_fastq_filehandle), parse_fastq(umi_fastq_filehandle)
-            ):
+            for (input_header, input_seq, input_qual), (umi_header, umi_seq, umi_qual) \
+            in zip(parse_fastq(input_fastq_filehandle), parse_fastq(umi_fastq_filehandle)):
                 split_input_header = input_header.split()
                 output_header = f"{split_input_header[0]}_{umi_seq} {split_input_header[1:].join(' ')}"
                 output_fastq_filehandle.write(
                     f"@{output_header}\n{input_seq}\n+\n{input_qual}\n"
                 )
         else:
-            for (input_header, input_seq, input_qual), (
-                umi_header,
-                umi_seq,
-                umi_qual,
-            ) in zip(
-                parse_fastq(input_fastq_filehandle), parse_fastq(umi_fastq_filehandle)
-            ):
+            for (input_header, input_seq, input_qual), (umi_header, umi_seq, umi_qual) \
+            in zip(parse_fastq(input_fastq_filehandle), parse_fastq(umi_fastq_filehandle)):
                 merged_seq = umi_seq + input_seq
                 merged_qual = umi_qual + input_qual
                 output_fastq_filehandle.write(
