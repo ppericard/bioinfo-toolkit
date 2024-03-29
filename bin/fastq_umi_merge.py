@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import os
 import argparse
 import gzip
 
@@ -33,19 +32,19 @@ def parse_fastq(fastq_filehandle):
     """
     line_number = 0
     for line in fastq_filehandle:
-        l = line.strip()
+        stripped_line = line.strip()
         if isinstance(line, bytes):  # Handle binary mode for gzip
-            l = l.decode("utf-8")
-        if l:
+            stripped_line = stripped_line.decode("utf-8")
+        if stripped_line:
             line_number += 1
             if line_number % 4 == 1:
-                read_header = l[1:]
+                read_header = stripped_line[1:]
             elif line_number % 4 == 2:
-                read_seq = l
+                read_seq = stripped_line
             elif line_number % 4 == 3:
                 continue  # Skip the '+' line
             elif line_number % 4 == 0:
-                read_qual = l
+                read_qual = stripped_line
                 yield (read_header, read_seq, read_qual)
 
 
