@@ -27,4 +27,3 @@ def test_script_template():
     # Just verify the help output contains some expected text
     assert "usage:" in result.stdout
 
-# The test for atomicblastplus has been removed as the script has been deprecated and archived 
