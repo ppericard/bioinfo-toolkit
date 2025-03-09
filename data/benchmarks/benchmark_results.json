@@ -1,0 +1,70 @@
+{
+  "100000_90.0": {
+    "original": {
+      "times": [
+        2.380208730697632,
+        2.366905450820923
+      ],
+      "memory": [
+        33697792,
+        42131456
+      ],
+      "disk_usage": [
+        0,
+        0
+      ],
+      "stats": {
+        "left_paired": 90000,
+        "left_unpaired": 10000,
+        "right_paired": 90000,
+        "right_unpaired": 10000
+      }
+    },
+    "v2": {
+      "times": [
+        2.3490614891052246,
+        2.3647572994232178
+      ],
+      "memory": [
+        53080064,
+        52441088
+      ],
+      "disk_usage": [
+        0,
+        0
+      ],
+      "stats": {
+        "left_paired": 90000,
+        "left_unpaired": 10000,
+        "right_paired": 90000,
+        "right_unpaired": 10000
+      }
+    },
+    "v3": {
+      "times": [
+        3.0719752311706543,
+        2.673119306564331
+      ],
+      "memory": [
+        20119552,
+        25837568
+      ],
+      "disk_usage": [
+        4650000,
+        4650000
+      ],
+      "stats": {
+        "left_paired": 90000,
+        "left_unpaired": 10000,
+        "right_paired": 90000,
+        "right_unpaired": 10000
+      }
+    }
+  },
+  "metadata": {
+    "platform": "Windows",
+    "python_version": "3.11.10",
+    "date": "2025-03-09 13:16:37",
+    "repeats": 2
+  }
+}

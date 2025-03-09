@@ -24,37 +24,44 @@ A collection of Python scripts for bioinformatics analysis, focusing on processi
    pip install -r requirements.txt
    ```
 
-## Main Scripts
+## Usage
 
-* **get_pairs**: Separates paired reads and singletons from two paired FASTQ files (left and right)
-* **fastq_to_fasta**: Converts FASTQ files to FASTA format
-* **fasta_length_filter**: Filters FASTA sequences by length
-* **atomicblastplus**: Submits a massively parallel Blast+ job-array to a computer cluster
-
-## Usage Examples
-
-### Processing Paired-End Reads
-
-The `get_pairs.py` script separates paired and unpaired reads from two FASTQ files:
+You can run any script in the toolkit using the main entry point:
 
 ```bash
-python bin/get_pairs.py -l reads_1.fastq -r reads_2.fastq -o output_dir
+python bioinfo-toolkit.py <script_name> [arguments]
 ```
 
-### Converting FASTQ to FASTA
+To see a list of all available scripts:
+
+```bash
+python bioinfo-toolkit.py
+```
+
+### Examples
+
+#### Processing Paired-End Reads
+
+The `get_pairs` script separates paired and unpaired reads from two FASTQ files:
+
+```bash
+python bioinfo-toolkit.py get_pairs -l reads_1.fastq -r reads_2.fastq -o output_dir
+```
+
+#### Converting FASTQ to FASTA
 
 Convert FASTQ files to FASTA format:
 
 ```bash
-python bin/fastq_to_fasta.py -i input.fastq -o output.fasta
+python bioinfo-toolkit.py fastq_to_fasta -i input.fastq -o output.fasta
 ```
 
-### Filtering FASTA by Length
+#### Filtering FASTA by Length
 
 Filter FASTA sequences by length:
 
 ```bash
-python bin/fasta_length_filter.py -i input.fasta -o output.fasta -m 300 -M 1000
+python bioinfo-toolkit.py fasta_length_filter -i input.fasta -o output.fasta -m 300 -M 1000
 ```
 
 ## Performance Benchmarking
@@ -63,26 +70,40 @@ The toolkit includes benchmarking tools that allow you to compare the performanc
 
 1. Create test datasets:
    ```bash
-   python bin/test_get_pairs.py -c
+   python bioinfo-toolkit.py create_test_datasets -c
    ```
 
 2. Run the benchmarks:
    ```bash
-   python bin/test_get_pairs.py
+   python bioinfo-toolkit.py test_get_pairs
    ```
 
 3. View detailed results including memory usage:
    ```bash
-   python bin/test_get_pairs.py -v
+   python bioinfo-toolkit.py test_get_pairs -v
    ```
 
 This will generate benchmark results comparing execution time and memory usage across different dataset sizes.
 
-## File Structure
+## Repository Structure
 
-* `bin/`: Contains the main scripts
-* `test_data/`: Generated test datasets
-* `benchmark_results/`: Benchmark output files
+```
+bioinfo-toolkit/
+├── bioinfo-toolkit.py     # Main entry point
+├── src/                   # Source code
+│   ├── scripts/           # Categorized scripts
+│   │   ├── fasta/         # FASTA processing scripts
+│   │   ├── fastq/         # FASTQ processing scripts
+│   │   ├── conversion/    # Format conversion scripts
+│   │   ├── tools/         # Utility tools
+│   │   └── benchmark/     # Benchmarking scripts
+│   └── utils/             # Utility modules
+├── data/                  # Data directory
+│   ├── test_data/         # Test datasets
+│   └── benchmarks/        # Benchmark results
+├── tests/                 # Test scripts
+└── requirements.txt       # Dependencies
+```
 
 ## Contributors
 
