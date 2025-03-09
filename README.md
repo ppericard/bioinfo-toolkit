@@ -7,7 +7,6 @@ A comprehensive collection of Python scripts for bioinformatics analysis, focusi
 * Process and manipulate FASTA files
 * Handle paired-end FASTQ reads
 * Convert between bioinformatics file formats
-* Submit parallel BLAST+ jobs
 * Generate sample datasets for testing
 * Benchmark script performance
 * Memory tracking utilities
@@ -92,14 +91,13 @@ python bioinfo-toolkit.py fastq_to_fasta -i input.fastq -o output.fasta
 
 ### Utility Tools
 
-* **atomicblastplus**: Run BLAST+ jobs in parallel
 * **script_template**: Template for creating new scripts for the toolkit
 
 #### Examples
 
 ```bash
-# Run BLAST+ in parallel
-python bioinfo-toolkit.py atomicblastplus -i queries.fasta -d database -o results -t 8
+# Create a new script from template
+python bioinfo-toolkit.py script_template -n my_new_script -c fasta
 ```
 
 ### Benchmarking and Testing Tools
@@ -194,12 +192,14 @@ bioinfo-toolkit/
 │   │   ├── conversion/     # Format conversion scripts
 │   │   │   └── fastq_to_fasta.py
 │   │   ├── tools/          # Utility tools
-│   │   │   ├── atomicblastplus.py
 │   │   │   └── script_template.py
 │   │   └── benchmark/      # Benchmarking scripts
 │   │       ├── test_get_pairs.py
 │   │       ├── benchmark_get_pairs.py
 │   │       └── create_test_datasets.py
+│   ├── archive/            # Archived deprecated scripts
+│   │   └── tools/          # Archived tools
+│   │       └── atomicblastplus.py
 │   └── utils/              # Utility modules
 │       ├── bioinfo_logger.py
 │       ├── fastq_utils.py
