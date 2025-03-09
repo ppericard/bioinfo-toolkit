@@ -4,331 +4,337 @@
 """
 Memory Tracker
 
-Description: Utilities for tracking and reporting memory usage in Python scripts
+This module provides utilities for tracking memory usage of Python processes.
+It consolidates functionality from multiple memory tracker modules into one.
 """
 
 import os
 import sys
-import subprocess
-import tempfile
-import platform
 import time
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union, Callable
+import platform
+import logging
+import threading
+from typing import Dict, List, Optional, Union, Callable, Any, Tuple
 
-# Try importing platform-specific modules
-try:
-    import psutil
-    HAVE_PSUTIL = True
-except ImportError:
-    HAVE_PSUTIL = False
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
-try:
-    import resource
-    HAVE_RESOURCE = True
-except ImportError:
-    HAVE_RESOURCE = False
-
+# Platform-specific imports
+if platform.system() == 'Windows':
+    try:
+        import psutil
+    except ImportError:
+        logger.warning("psutil not available. Install with: pip install psutil")
+        psutil = None
+elif platform.system() == 'Linux':
+    try:
+        import resource
+    except ImportError:
+        logger.warning("resource module not available.")
+        resource = None
+elif platform.system() == 'Darwin':  # macOS
+    try:
+        import resource
+        import subprocess
+    except ImportError:
+        logger.warning("Required modules not available.")
+        resource = None
+        subprocess = None
 
 class MemoryTracker:
     """
-    Track memory usage during script execution using various methods.
-    Supports multiple tracking mechanisms for cross-platform compatibility.
+    A utility for tracking memory usage of Python processes.
+    
+    This class provides methods to monitor memory usage of the current process 
+    or a specific function. It supports different platforms (Windows, Linux, macOS)
+    and can be used as a context manager or decorator.
     """
     
-    def __init__(self, pid: Optional[int] = None):
+    def __init__(self, 
+                 interval: float = 1.0, 
+                 log_level: int = logging.INFO,
+                 include_children: bool = True):
         """
         Initialize the memory tracker.
         
         Args:
-            pid: Process ID to track, or None to track the current process
+            interval: Polling interval in seconds
+            log_level: Logging level
+            include_children: Whether to include child processes in memory measurements
         """
-        self.pid = pid or os.getpid()
-        self.platform = platform.system()
-        self.tracking_methods = self._get_available_tracking_methods()
-        self.peak_memory = 0  # in bytes
-        self.start_memory = self._get_current_memory()
-        self.timeline = []  # [(timestamp, memory_usage)]
-        self.is_tracking = False
+        self.interval = interval
+        self.log_level = log_level
+        self.include_children = include_children
+        self.measurements: List[Dict[str, Any]] = []
+        self.running = False
+        self.monitor_thread: Optional[threading.Thread] = None
+        self.start_time = 0.0
+        self.end_time = 0.0
+        self.peak_memory = 0
+        self.current_memory = 0
         
-    def _get_available_tracking_methods(self) -> List[str]:
+        # Set up platform-specific measuring method
+        self.measure_memory = self._get_platform_measure_method()
+    
+    def _get_platform_measure_method(self) -> Callable[[], int]:
         """
-        Determine which memory tracking methods are available on this system.
+        Get the appropriate memory measurement method for the current platform.
         
         Returns:
-            List of tracking method names
+            A function that returns memory usage in bytes
         """
-        methods = []
+        system = platform.system()
         
-        # psutil is cross-platform
-        if HAVE_PSUTIL:
-            methods.append('psutil')
+        if system == 'Windows':
+            if psutil:
+                return self._measure_memory_windows
+            else:
+                logger.warning("Using fallback memory measurement on Windows. Install psutil for accurate tracking.")
+                return self._measure_memory_fallback
         
-        # resource module for Unix-like systems
-        if HAVE_RESOURCE and self.platform != 'Windows':
-            methods.append('resource')
+        elif system == 'Linux':
+            if resource:
+                return self._measure_memory_linux
+            else:
+                return self._measure_memory_fallback
         
-        # Operating system specific methods
-        if self.platform == 'Linux':
-            methods.append('proc')
-        elif self.platform == 'Windows':
-            # Windows Performance Counters
-            methods.append('wmic')
+        elif system == 'Darwin':  # macOS
+            if resource and subprocess:
+                return self._measure_memory_macos
+            else:
+                return self._measure_memory_fallback
         
-        return methods
+        else:
+            logger.warning(f"Unsupported platform: {system}. Using fallback memory measurement.")
+            return self._measure_memory_fallback
     
-    def _get_memory_psutil(self) -> int:
-        """Get memory usage via psutil in bytes."""
-        if not HAVE_PSUTIL:
-            return 0
+    def _measure_memory_windows(self) -> int:
+        """Measure memory usage on Windows."""
+        process = psutil.Process(os.getpid())
+        memory_info = process.memory_info()
         
+        if self.include_children:
+            # Include memory of child processes
+            mem_total = memory_info.rss
+            for child in process.children(recursive=True):
+                try:
+                    mem_total += child.memory_info().rss
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+            return mem_total
+        else:
+            return memory_info.rss
+    
+    def _measure_memory_linux(self) -> int:
+        """Measure memory usage on Linux."""
+        # Get resident set size (RSS) from /proc/self/statm
+        with open('/proc/self/statm', 'r') as f:
+            fields = f.read().split()
+            rss = int(fields[1]) * os.sysconf('SC_PAGE_SIZE')
+        
+        # Include child processes if requested
+        if self.include_children and psutil:
+            process = psutil.Process(os.getpid())
+            for child in process.children(recursive=True):
+                try:
+                    rss += child.memory_info().rss
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+        
+        return rss
+    
+    def _measure_memory_macos(self) -> int:
+        """Measure memory usage on macOS."""
+        # Use resource module for current process
+        rusage = resource.getrusage(resource.RUSAGE_SELF)
+        memory = rusage.ru_maxrss * 1024  # macOS reports in KB
+        
+        # Include memory of child processes if requested
+        if self.include_children:
+            rusage_children = resource.getrusage(resource.RUSAGE_CHILDREN)
+            memory += rusage_children.ru_maxrss * 1024
+        
+        return memory
+    
+    def _measure_memory_fallback(self) -> int:
+        """Fallback memory measurement method when platform-specific methods aren't available."""
         try:
-            process = psutil.Process(self.pid)
-            # Return RSS (Resident Set Size) in bytes
-            return process.memory_info().rss
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            import tracemalloc
+            if not tracemalloc.is_tracing():
+                tracemalloc.start()
+            
+            snapshot = tracemalloc.take_snapshot()
+            return sum(trace.size for trace in snapshot.traces)
+        except ImportError:
+            logger.warning("tracemalloc not available. Memory tracking will be inaccurate.")
             return 0
     
-    def _get_memory_resource(self) -> int:
-        """Get memory usage via resource module in bytes."""
-        if not HAVE_RESOURCE:
-            return 0
+    def start(self) -> None:
+        """Start memory tracking."""
+        if self.running:
+            logger.warning("Memory tracker is already running.")
+            return
         
-        try:
-            # Return peak memory (maximum resident set size) in bytes
-            return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024
-        except Exception:
-            return 0
+        self.running = True
+        self.measurements = []
+        self.start_time = time.time()
+        self.peak_memory = 0
+        
+        # Start the monitoring thread
+        self.monitor_thread = threading.Thread(
+            target=self._monitor_memory,
+            daemon=True
+        )
+        self.monitor_thread.start()
     
-    def _get_memory_proc(self) -> int:
-        """Get memory from /proc/[pid]/status on Linux systems."""
-        if self.platform != 'Linux':
-            return 0
-        
-        try:
-            with open(f'/proc/{self.pid}/status', 'r') as f:
-                for line in f:
-                    if line.startswith('VmRSS:'):
-                        # Extract value in kB and convert to bytes
-                        return int(line.split()[1]) * 1024
-        except (FileNotFoundError, IOError, ValueError):
-            return 0
-        
-        return 0
-    
-    def _get_memory_wmic(self) -> int:
-        """Get memory usage on Windows via WMIC."""
-        if self.platform != 'Windows':
-            return 0
-        
-        try:
-            cmd = f'wmic process where ProcessId={self.pid} get WorkingSetSize'
-            output = subprocess.check_output(cmd, shell=True, text=True)
-            lines = output.strip().split('\n')
-            if len(lines) >= 2:
-                # Parse the second line (first line is the header)
-                return int(lines[1].strip())
-        except (subprocess.SubprocessError, ValueError, IndexError):
-            return 0
-        
-        return 0
-    
-    def _get_current_memory(self) -> int:
+    def stop(self) -> Tuple[float, int]:
         """
-        Get current memory usage using the best available method.
+        Stop memory tracking.
         
         Returns:
-            Memory usage in bytes
+            Tuple of (elapsed_time, peak_memory)
         """
-        memory_usage = 0
+        if not self.running:
+            logger.warning("Memory tracker is not running.")
+            return 0.0, 0
         
-        # Try each method in order of accuracy
-        if 'psutil' in self.tracking_methods:
-            memory_usage = max(memory_usage, self._get_memory_psutil())
+        self.running = False
+        if self.monitor_thread:
+            self.monitor_thread.join(timeout=self.interval*2)
         
-        if 'resource' in self.tracking_methods:
-            memory_usage = max(memory_usage, self._get_memory_resource())
+        self.end_time = time.time()
+        elapsed_time = self.end_time - self.start_time
         
-        if 'proc' in self.tracking_methods:
-            memory_usage = max(memory_usage, self._get_memory_proc())
-        
-        if 'wmic' in self.tracking_methods:
-            memory_usage = max(memory_usage, self._get_memory_wmic())
-        
-        return memory_usage
+        return elapsed_time, self.peak_memory
     
-    def start_tracking(self, interval: float = 0.1) -> None:
+    def _monitor_memory(self) -> None:
+        """Monitor memory usage in a background thread."""
+        while self.running:
+            try:
+                memory = self.measure_memory()
+                self.current_memory = memory
+                self.peak_memory = max(self.peak_memory, memory)
+                
+                timestamp = time.time() - self.start_time
+                self.measurements.append({
+                    'timestamp': timestamp,
+                    'memory': memory
+                })
+                
+                logger.log(self.log_level, f"Memory usage: {self._format_bytes(memory)}")
+                
+            except Exception as e:
+                logger.error(f"Error measuring memory: {e}")
+            
+            # Wait for the next interval
+            time.sleep(self.interval)
+    
+    def _format_bytes(self, bytes_value: int) -> str:
         """
-        Start tracking memory usage in a background thread.
+        Format bytes as a human-readable string.
         
         Args:
-            interval: Time between memory measurements in seconds
+            bytes_value: Number of bytes
+            
+        Returns:
+            Formatted string (e.g. "4.5 MB")
         """
-        if HAVE_PSUTIL:
-            self.is_tracking = True
-            # Reset statistics
-            self.peak_memory = self._get_current_memory()
-            self.timeline = [(time.time(), self.peak_memory)]
-            
-            # Start monitoring in a background thread
-            import threading
-            
-            def _monitor():
-                while self.is_tracking:
-                    current_memory = self._get_current_memory()
-                    self.peak_memory = max(self.peak_memory, current_memory)
-                    self.timeline.append((time.time(), current_memory))
-                    time.sleep(interval)
-            
-            self.monitor_thread = threading.Thread(target=_monitor, daemon=True)
-            self.monitor_thread.start()
-        else:
-            # If psutil isn't available, just record the start memory
-            self.peak_memory = self._get_current_memory()
-            self.timeline = [(time.time(), self.peak_memory)]
+        units = ['B', 'KB', 'MB', 'GB', 'TB']
+        size = float(bytes_value)
+        unit_index = 0
+        
+        while size >= 1024.0 and unit_index < len(units) - 1:
+            size /= 1024.0
+            unit_index += 1
+        
+        return f"{size:.2f} {units[unit_index]}"
     
-    def stop_tracking(self) -> Dict[str, Union[int, float]]:
+    def get_summary(self) -> Dict[str, Any]:
         """
-        Stop tracking memory usage and return statistics.
+        Get a summary of memory usage.
         
         Returns:
             Dictionary with memory usage statistics
         """
-        # Measure final memory usage
-        current = self._get_current_memory()
-        self.peak_memory = max(self.peak_memory, current)
-        self.timeline.append((time.time(), current))
-        
-        # Stop the monitoring thread if it exists
-        self.is_tracking = False
-        if hasattr(self, 'monitor_thread') and self.monitor_thread.is_alive():
-            self.monitor_thread.join(timeout=1.0)
-        
-        # Calculate statistics
-        initial = self.timeline[0][1] if self.timeline else 0
-        final = self.timeline[-1][1] if self.timeline else current
+        elapsed_time = self.end_time - self.start_time if self.end_time else time.time() - self.start_time
         
         return {
-            'peak_bytes': self.peak_memory,
-            'initial_bytes': initial,
-            'final_bytes': final,
-            'difference_bytes': final - initial
+            'peak_memory': self.peak_memory,
+            'peak_memory_formatted': self._format_bytes(self.peak_memory),
+            'elapsed_time': elapsed_time,
+            'elapsed_time_formatted': f"{elapsed_time:.2f} seconds",
+            'measurements': self.measurements
         }
-
-
-def measure_memory_usage(func: Callable, *args, **kwargs) -> Tuple[object, Dict[str, Union[int, float]]]:
-    """
-    Measure the memory usage of a function.
     
-    Args:
-        func: The function to measure
-        *args: Arguments to pass to the function
-        **kwargs: Keyword arguments to pass to the function
+    def __enter__(self) -> 'MemoryTracker':
+        """Start tracking when used as a context manager."""
+        self.start()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Stop tracking when exiting context manager."""
+        self.stop()
         
+        # Log peak memory usage
+        logger.log(self.log_level, f"Peak memory usage: {self._format_bytes(self.peak_memory)}")
+        logger.log(self.log_level, f"Elapsed time: {self.end_time - self.start_time:.2f} seconds")
+    
+    def __call__(self, func: Callable) -> Callable:
+        """Use as a decorator to track memory usage of a function."""
+        def wrapper(*args, **kwargs):
+            with self:
+                result = func(*args, **kwargs)
+            return result
+        
+        return wrapper
+
+# Simple functions for quick memory monitoring
+def get_current_memory() -> int:
+    """
+    Get current memory usage of the process.
+    
     Returns:
-        Tuple of (function result, memory statistics)
+        Current memory usage in bytes
     """
     tracker = MemoryTracker()
-    tracker.start_tracking()
-    
-    try:
-        result = func(*args, **kwargs)
-    finally:
-        stats = tracker.stop_tracking()
-    
-    return result, stats
+    return tracker.measure_memory()
 
-
-def measure_script_memory(cmd: List[str]) -> Tuple[str, Dict[str, Union[int, float]]]:
+def get_current_memory_formatted() -> str:
     """
-    Measure the memory usage of an external script.
+    Get current memory usage as a formatted string.
+    
+    Returns:
+        Formatted string (e.g. "4.5 MB")
+    """
+    tracker = MemoryTracker()
+    memory = tracker.measure_memory()
+    return tracker._format_bytes(memory)
+
+def track_memory(func=None, *, interval: float = 1.0, log_level: int = logging.INFO):
+    """
+    Decorator to track memory usage of a function.
     
     Args:
-        cmd: Command to execute as a list of strings
+        func: Function to decorate
+        interval: Polling interval in seconds
+        log_level: Logging level
         
     Returns:
-        Tuple of (command output, memory statistics)
+        Decorated function
     """
-    # Use built-in tools if available
-    if platform.system() == 'Linux':
-        # Try using /usr/bin/time -v
-        try:
-            # Create a temporary file for output
-            with tempfile.NamedTemporaryFile(mode='w+', delete=False) as f:
-                time_file = f.name
-            
-            # Create a temporary file for stderr
-            with tempfile.NamedTemporaryFile(mode='w+', delete=False) as f:
-                stderr_file = f.name
-            
-            # Add time command to measure memory
-            time_cmd = ['/usr/bin/time', '-v', '-o', time_file]
-            
-            # Execute the command
-            full_cmd = time_cmd + cmd
-            output = subprocess.check_output(full_cmd, stderr=open(stderr_file, 'w'), text=True)
-            
-            # Parse time output
-            memory_kb = 0
-            with open(time_file, 'r') as f:
-                for line in f:
-                    if 'Maximum resident set size' in line:
-                        # Value is in KB
-                        try:
-                            memory_kb = int(line.split(':')[1].strip())
-                            break
-                        except (ValueError, IndexError):
-                            pass
-            
-            # Clean up temporary files
-            try:
-                os.unlink(time_file)
-                os.unlink(stderr_file)
-            except OSError:
-                pass
-            
-            return output, {'peak_bytes': memory_kb * 1024}
-            
-        except (subprocess.SubprocessError, FileNotFoundError):
-            # Fall back to psutil method
-            pass
-    
-    # Default method using psutil
-    if HAVE_PSUTIL:
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        
-        # Track memory in the child process
-        tracker = MemoryTracker(process.pid)
-        tracker.start_tracking()
-        
-        # Wait for process to complete
-        stdout, stderr = process.communicate()
-        
-        # Stop tracking and get stats
-        stats = tracker.stop_tracking()
-        
-        return stdout, stats
-    
-    # If no method is available, just run the command without tracking
-    output = subprocess.check_output(cmd, text=True)
-    return output, {'peak_bytes': 0}
+    if func is None:
+        return lambda f: MemoryTracker(interval=interval, log_level=log_level)(f)
+    return MemoryTracker(interval=interval, log_level=log_level)(func)
 
-
-def format_bytes(bytes_value: int) -> str:
-    """
-    Format bytes into a human-readable string.
-    
-    Args:
-        bytes_value: Value in bytes
-        
-    Returns:
-        Formatted string (e.g., "1.23 MB")
-    """
-    if bytes_value < 1024:
-        return f"{bytes_value} B"
-    elif bytes_value < 1024 * 1024:
-        return f"{bytes_value / 1024:.2f} KB"
-    elif bytes_value < 1024 * 1024 * 1024:
-        return f"{bytes_value / (1024 * 1024):.2f} MB"
-    else:
-        return f"{bytes_value / (1024 * 1024 * 1024):.2f} GB" 
+# Export public API
+__all__ = [
+    'MemoryTracker',
+    'measure_memory_usage',
+    'measure_script_memory',
+    'format_bytes'
+] 
