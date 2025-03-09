@@ -19,7 +19,7 @@ Created: 2012-11-09
 Modified: 2023-06-09
 Licence: GNU GPL 3.0
 
-Copyright 2013-2023 Pierre Pericard
+Copyright 2012-2023 Pierre Pericard
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -40,233 +40,216 @@ import sys
 import argparse
 import logging
 from pathlib import Path
-from typing import Dict, Set, Optional
+from typing import Dict, Optional
 
-# Import local modules
-try:
-    # Try to import from the src package
-    from bioinfotoolkit.utils.fastq_utils import build_read_id_set, process_fastq_file, extract_read_id, open_file
-    from bioinfotoolkit.utils.bioinfo_logger import get_logger
-except ImportError:
-    # Fall back to relative imports for standalone usage
-    sys.path.append(str(Path(__file__).parent.parent.parent.parent))
-    from bioinfotoolkit.utils.fastq_utils import build_read_id_set, process_fastq_file, extract_read_id, open_file
-    from bioinfotoolkit.utils.bioinfo_logger import get_logger
+from bioinfotoolkit.scripts.fastq.get_pairs_implementations import IMPLEMENTATIONS
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
 def get_pairs(
     left_file: str,
     right_file: str,
     output_dir: str,
-    galaxy_mode: bool = False,
-    verbose: bool = False
+    implementation: str = 'v1',
+    compress: bool = False,
+    verbose: bool = False,
+    **kwargs
 ) -> Dict[str, Dict[str, int]]:
     """
-    Process paired-end FASTQ files to separate paired and unpaired reads.
+    Get separately paired reads and singletons from two FASTQ files.
     
     Args:
-        left_file: Path to the left reads FASTQ file
-        right_file: Path to the right reads FASTQ file
+        left_file: Path to the left (R1) FASTQ file
+        right_file: Path to the right (R2) FASTQ file
         output_dir: Directory to write output files
-        galaxy_mode: Whether to use Galaxy naming conventions
-        verbose: Enable verbose output
+        implementation: Which implementation to use ('v1', 'v2', or 'v3')
+        compress: Whether to compress output files
+        verbose: Whether to print verbose output
+        **kwargs: Additional arguments to pass to the implementation
         
     Returns:
-        Dictionary with statistics for both files
+        Dictionary with counts of paired and singleton reads
     """
-    # Setup logger
-    logger = get_logger("get_pairs")
-    log_level = logging.DEBUG if verbose else logging.INFO
-    logger.set_level(log_level)
+    # Convert paths to Path objects
+    left_path = Path(left_file)
+    right_path = Path(right_file)
+    output_path = Path(output_dir)
     
-    # Create output directory if it doesn't exist
-    output_dir_path = Path(output_dir)
-    output_dir_path.mkdir(parents=True, exist_ok=True)
+    # Check if files exist
+    if not left_path.exists():
+        raise FileNotFoundError(f"Left file not found: {left_file}")
     
-    # Log parameters
-    logger.info(f"Left reads file: {left_file}")
-    logger.info(f"Right reads file: {right_file}")
-    logger.info(f"Output directory: {output_dir}")
+    if not right_path.exists():
+        raise FileNotFoundError(f"Right file not found: {right_file}")
     
-    # Determine output filenames
-    output_files = {}
-    for file_path, suffix in [(left_file, "left"), (right_file, "right")]:
-        if galaxy_mode:
-            base_filename = suffix
-            extension = "fastq"
-        else:
-            file_path_obj = Path(file_path)
-            base_filename = file_path_obj.stem
-            extension = file_path_obj.suffix.lstrip('.')
-            if extension == 'gz':  # Handle .fastq.gz extensions
-                extension = file_path_obj.suffixes[-2].lstrip('.') + '.gz'
-                base_filename = file_path_obj.name[:-(len(extension)+1)]
-        
-        # Use string paths instead of Path objects for compatibility
-        output_files[suffix] = {
-            "paired": str(output_dir_path / f"{suffix}.paired.{extension}"),
-            "unpaired": str(output_dir_path / f"{suffix}.unpaired.{extension}")
-        }
+    # Check if implementation exists
+    if implementation not in IMPLEMENTATIONS:
+        raise ValueError(f"Unknown implementation: {implementation}. Available: {', '.join(IMPLEMENTATIONS.keys())}")
     
-    # STEP 1: Build an index of read IDs from the left file
-    logger.start_progress(f"Building index from {left_file}")
-    left_read_ids = build_read_id_set(
-        left_file, 
-        progress_callback=logger.get_progress_callback("Indexing left file")
+    # Get the implementation class
+    impl_class = IMPLEMENTATIONS[implementation]
+    
+    # Run the implementation
+    if verbose:
+        logger.info(f"Using implementation: {implementation}")
+    
+    counts = impl_class.process(
+        left_path,
+        right_path,
+        output_path,
+        compress=compress,
+        verbose=verbose,
+        **kwargs
     )
-    logger.finish_progress()
-    logger.info(f"Found {len(left_read_ids):,} unique read IDs in left file")
     
-    # STEP 2: Process the right file using the left read IDs
-    logger.start_progress(f"Processing {right_file}")
-    right_stats = process_fastq_file(
-        right_file,
-        output_files["right"]["paired"],
-        output_files["right"]["unpaired"],
-        left_read_ids,
-        invert_match=False,
-        progress_callback=logger.get_progress_callback("Processing right file")
-    )
-    logger.finish_progress()
-    
-    # STEP 3: Extract paired read IDs from the processed right file
-    # This ensures we only keep reads paired in both directions
-    logger.start_progress("Identifying paired reads")
-    
-    # Optimization: Instead of reading the entire output file again,
-    # we can use the intersection of left_read_ids and right_read_ids
-    # that were actually found in the right file
-    paired_read_ids = set()
-    with open_file(output_files["right"]["paired"]) as f:
-        record_count = 0
-        for line_idx, line in enumerate(f):
-            if line_idx % 4 == 0:  # Header line
-                read_id = extract_read_id(line)
-                paired_read_ids.add(read_id)
-                record_count += 1
-                
-                # Periodically update progress
-                if record_count % 10000 == 0:
-                    logger.update_progress(record_count)
-    
-    logger.finish_progress()
-    logger.info(f"Found {len(paired_read_ids):,} paired reads")
-    
-    # STEP 4: Process the left file to create paired and unpaired outputs
-    logger.start_progress(f"Processing {left_file}")
-    left_stats = process_fastq_file(
-        left_file,
-        output_files["left"]["paired"],
-        output_files["left"]["unpaired"],
-        paired_read_ids,
-        invert_match=False,
-        progress_callback=logger.get_progress_callback("Processing left file")
-    )
-    logger.finish_progress()
-    
-    # Log summary statistics
-    logger.info(f"Left file: {left_stats['paired']} paired, {left_stats['unpaired']} unpaired")
-    logger.info(f"Right file: {right_stats['paired']} paired, {right_stats['unpaired']} unpaired")
-    
+    # Return the results
     return {
-        "left": left_stats,
-        "right": right_stats
+        'counts': counts,
+        'files': {
+            'paired_1': str(output_path / f"paired_1.fastq{'.gz' if compress else ''}"),
+            'paired_2': str(output_path / f"paired_2.fastq{'.gz' if compress else ''}"),
+            'singleton_1': str(output_path / f"singleton_1.fastq{'.gz' if compress else ''}"),
+            'singleton_2': str(output_path / f"singleton_2.fastq{'.gz' if compress else ''}")
+        }
     }
 
-
 def parse_args() -> argparse.Namespace:
-    """Parse and validate command line arguments."""
+    """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description='Get separately paired reads and singletons from two FASTQ files (left and right)',
+        description="Get separately paired reads and singletons from two FASTQ files",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     
     # Input files
-    input_group = parser.add_argument_group('Input Files')
-    input_group.add_argument('-l', '--left', 
-                        dest='left_file',
-                        help='Left reads FASTQ file')
+    input_group = parser.add_argument_group('Input')
+    input_group.add_argument(
+        '-l', '--left',
+        dest='left_file',
+        required=True,
+        help='Left FASTQ file'
+    )
     
-    input_group.add_argument('-r', '--right', 
-                        dest='right_file',
-                        help='Right reads FASTQ file')
+    input_group.add_argument(
+        '-r', '--right',
+        dest='right_file',
+        required=True,
+        help='Right FASTQ file'
+    )
     
-    # Optional arguments
-    output_group = parser.add_argument_group('Output Options')
-    output_group.add_argument('-o', '--output-dir', 
-                        dest='output_dir',
-                        default='.',
-                        help='Output directory for paired and unpaired files')
+    # Output options
+    output_group = parser.add_argument_group('Output')
+    output_group.add_argument(
+        '-o', '--output-dir',
+        dest='output_dir',
+        default='get_pairs_output',
+        help='Output directory'
+    )
     
-    output_group.add_argument('--galaxy', 
-                        action="store_true", 
-                        default=False, 
-                        help="Enable Galaxy mode (uses fixed output filenames)")
+    output_group.add_argument(
+        '-z', '--compress',
+        action='store_true',
+        help='Compress output files with gzip'
+    )
     
-    # Performance options
-    perf_group = parser.add_argument_group('Performance Options')
-    perf_group.add_argument('--chunk-size',
-                        type=int,
-                        default=10000,
-                        help='Number of records to process in each batch')
+    # Implementation options
+    impl_group = parser.add_argument_group('Implementation')
+    impl_group.add_argument(
+        '-i', '--implementation',
+        choices=list(IMPLEMENTATIONS.keys()),
+        default='v1',
+        help='Which implementation to use'
+    )
     
-    # Logging options
-    log_group = parser.add_argument_group('Logging Options')
-    log_group.add_argument('-v', '--verbose',
-                        action='store_true',
-                        help='Enable verbose output')
+    # V3-specific options
+    v3_group = parser.add_argument_group('V3 Implementation Options')
+    v3_group.add_argument(
+        '--chunk-size',
+        type=int,
+        default=1000000,
+        help='Number of reads to process at once (V3 only)'
+    )
     
-    log_group.add_argument('-q', '--quiet',
-                        action='store_true',
-                        help='Suppress progress messages')
+    v3_group.add_argument(
+        '--temp-dir',
+        help='Directory for temporary files (V3 only)'
+    )
     
-    # Legacy positional arguments
-    parser.add_argument('leftreads', 
-                        nargs='?', 
-                        help=argparse.SUPPRESS)
+    # Other options
+    other_group = parser.add_argument_group('Other')
+    other_group.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        help='Print verbose output'
+    )
     
-    parser.add_argument('rightreads', 
-                        nargs='?', 
-                        help=argparse.SUPPRESS)
+    # Galaxy compatibility
+    other_group.add_argument(
+        '-g', '--galaxy-mode',
+        action='store_true',
+        help='Galaxy mode (for compatibility)'
+    )
     
-    args = parser.parse_args()
+    # Parse positional arguments if provided
+    if len(sys.argv) == 3 and not sys.argv[1].startswith('-') and not sys.argv[2].startswith('-'):
+        sys.argv = [sys.argv[0], '-l', sys.argv[1], '-r', sys.argv[2]]
     
-    # Handle legacy positional arguments
-    if args.leftreads and args.rightreads:
-        if not args.left_file:
-            args.left_file = args.leftreads
-        if not args.right_file:
-            args.right_file = args.rightreads
-    
-    # Validate required arguments
-    if not args.left_file or not args.right_file:
-        parser.error("Must provide both left and right FASTQ files")
-    
-    return args
-
+    return parser.parse_args()
 
 def main() -> int:
     """Main function."""
-    # Parse command line arguments
     args = parse_args()
     
     try:
-        # Process the files
-        get_pairs(
-            left_file=args.left_file,
-            right_file=args.right_file,
-            output_dir=args.output_dir,
-            galaxy_mode=args.galaxy,
-            verbose=args.verbose
+        # Create output directory if it doesn't exist
+        output_dir = Path(args.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Prepare kwargs for the implementation
+        kwargs = {}
+        if args.implementation == 'v3':
+            kwargs['chunk_size'] = args.chunk_size
+            if args.temp_dir:
+                kwargs['temp_dir'] = Path(args.temp_dir)
+        
+        # Run get_pairs
+        result = get_pairs(
+            args.left_file,
+            args.right_file,
+            args.output_dir,
+            implementation=args.implementation,
+            compress=args.compress,
+            verbose=args.verbose,
+            **kwargs
         )
+        
+        # Print summary
+        counts = result['counts']
+        print("\nSummary:")
+        print(f"  Paired reads: {counts['paired']}")
+        print(f"  Singleton reads (left): {counts['singleton_1']}")
+        print(f"  Singleton reads (right): {counts['singleton_2']}")
+        print(f"  Total reads (left): {counts['total_1']}")
+        print(f"  Total reads (right): {counts['total_2']}")
+        
+        # Print output files
+        files = result['files']
+        print("\nOutput files:")
+        print(f"  Paired reads (left): {files['paired_1']}")
+        print(f"  Paired reads (right): {files['paired_2']}")
+        print(f"  Singleton reads (left): {files['singleton_1']}")
+        print(f"  Singleton reads (right): {files['singleton_2']}")
+        
         return 0
+    
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
+        logger.error(f"Error: {e}")
         return 1
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())
