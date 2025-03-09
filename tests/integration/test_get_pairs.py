@@ -62,5 +62,8 @@ def test_get_pairs_script_execution(paired_fastq_files, temp_dir):
     assert os.path.exists(os.path.join(output_dir, "left.unpaired.fastq"))
     assert os.path.exists(os.path.join(output_dir, "right.unpaired.fastq"))
     
-    # Check the stdout for expected output
-    assert "2 paired reads" in result.stdout 
+    # Check the output for expected messages
+    # The output format is "Left file: X paired, Y unpaired"
+    # The logging output goes to stderr, not stdout
+    assert "Left file: 2 paired, 1 unpaired" in result.stderr
+    assert "Right file: 2 paired, 1 unpaired" in result.stderr 

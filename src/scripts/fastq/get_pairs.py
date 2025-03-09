@@ -102,9 +102,10 @@ def get_pairs(
                 extension = file_path_obj.suffixes[-2].lstrip('.') + '.gz'
                 base_filename = file_path_obj.name[:-(len(extension)+1)]
         
+        # Use string paths instead of Path objects for compatibility
         output_files[suffix] = {
-            "paired": output_dir_path / f"{base_filename}.paired.{extension}",
-            "unpaired": output_dir_path / f"{base_filename}.unpaired.{extension}"
+            "paired": str(output_dir_path / f"{suffix}.paired.{extension}"),
+            "unpaired": str(output_dir_path / f"{suffix}.unpaired.{extension}")
         }
     
     # STEP 1: Build an index of read IDs from the left file
@@ -163,9 +164,9 @@ def get_pairs(
     )
     logger.finish_progress()
     
-    # Log results
-    logger.info(f"Left file: {left_stats['paired']:,} paired, {left_stats['unpaired']:,} unpaired")
-    logger.info(f"Right file: {right_stats['paired']:,} paired, {right_stats['unpaired']:,} unpaired")
+    # Log summary statistics
+    logger.info(f"Left file: {left_stats['paired']} paired, {left_stats['unpaired']} unpaired")
+    logger.info(f"Right file: {right_stats['paired']} paired, {right_stats['unpaired']} unpaired")
     
     return {
         "left": left_stats,
