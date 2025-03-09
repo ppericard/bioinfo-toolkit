@@ -198,8 +198,6 @@ bioinfo-toolkit/
 │   │       ├── benchmark_get_pairs.py
 │   │       └── create_test_datasets.py
 │   ├── archive/            # Archived deprecated scripts
-│   │   └── tools/          # Archived tools
-│   │       └── atomicblastplus.py
 │   └── utils/              # Utility modules
 │       ├── bioinfo_logger.py
 │       ├── fastq_utils.py
