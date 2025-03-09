@@ -34,6 +34,7 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
+.pytest_cache/
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -76,4 +77,16 @@ Desktop.ini
 # Tool-specific directories
 .cursor/
 .cursorignore
-.specstory/ 
+.specstory/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# Log files
+*.log
+
+# Local configuration
+.local/ 
