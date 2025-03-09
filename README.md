@@ -1,15 +1,16 @@
 # Bioinfo-Toolkit
 
-A collection of Python scripts for bioinformatics analysis, focusing on processing and manipulating common file formats such as FASTA and FASTQ.
+A comprehensive collection of Python scripts for bioinformatics analysis, focusing on processing and manipulating common file formats such as FASTA and FASTQ.
 
 ## Features
 
-* Process paired-end FASTQ reads
-* Filter FASTA sequences by length
-* Convert between FASTQ and FASTA formats
+* Process and manipulate FASTA files
+* Handle paired-end FASTQ reads
+* Convert between bioinformatics file formats
 * Submit parallel BLAST+ jobs
-* Generate sample datasets
-* And more
+* Generate sample datasets for testing
+* Benchmark script performance
+* Memory tracking utilities
 
 ## Installation
 
@@ -38,35 +39,96 @@ To see a list of all available scripts:
 python bioinfo-toolkit.py
 ```
 
-### Examples
+## Available Scripts
 
-#### Processing Paired-End Reads
+### FASTA Processing Tools
 
-The `get_pairs` script separates paired and unpaired reads from two FASTQ files:
+* **fasta_length_filter**: Filter FASTA sequences by length
+* **fasta_n_filter**: Filter FASTA sequences by N content
+* **fasta_name_filter**: Filter FASTA sequences by name/header
+* **fasta_length_histo**: Generate length histogram of FASTA sequences
+* **sort_fasta_by_length**: Sort FASTA sequences by length
+* **gener_sample_fasta**: Generate sample FASTA datasets for testing
+
+#### Examples
 
 ```bash
-python bioinfo-toolkit.py get_pairs -l reads_1.fastq -r reads_2.fastq -o output_dir
+# Filter sequences by length
+python bioinfo-toolkit.py fasta_length_filter -i input.fasta -o output.fasta -m 300 -M 1000
+
+# Generate a histogram of sequence lengths
+python bioinfo-toolkit.py fasta_length_histo -i input.fasta -o length_histogram.png
 ```
 
-#### Converting FASTQ to FASTA
+### FASTQ Processing Tools
 
-Convert FASTQ files to FASTA format:
+* **get_pairs**: Process paired-end reads and separate them into pairs and singletons
+* **get_pairs_v3**: Advanced implementation of get_pairs with improved memory usage
+* **split_paired_fastq**: Split interleaved FASTQ files into separate files
+* **fastq_umi_merge**: Merge FASTQ files with UMIs (Unique Molecular Identifiers)
+* **fastq_name_filter**: Filter FASTQ sequences by name/header
+* **gener_sample_fastq**: Generate sample FASTQ datasets for testing
+
+#### Examples
 
 ```bash
+# Process paired-end reads
+python bioinfo-toolkit.py get_pairs -l reads_1.fastq -r reads_2.fastq -o output_dir
+
+# Filter FASTQ reads by name
+python bioinfo-toolkit.py fastq_name_filter -i input.fastq -o filtered.fastq -l names_list.txt
+```
+
+### File Format Conversion Tools
+
+* **fastq_to_fasta**: Convert FASTQ files to FASTA format
+
+#### Examples
+
+```bash
+# Convert FASTQ to FASTA
 python bioinfo-toolkit.py fastq_to_fasta -i input.fastq -o output.fasta
 ```
 
-#### Filtering FASTA by Length
+### Utility Tools
 
-Filter FASTA sequences by length:
+* **atomicblastplus**: Run BLAST+ jobs in parallel
+* **script_template**: Template for creating new scripts for the toolkit
+
+#### Examples
 
 ```bash
-python bioinfo-toolkit.py fasta_length_filter -i input.fasta -o output.fasta -m 300 -M 1000
+# Run BLAST+ in parallel
+python bioinfo-toolkit.py atomicblastplus -i queries.fasta -d database -o results -t 8
 ```
+
+### Benchmarking and Testing Tools
+
+* **test_get_pairs**: Test and compare different implementations of get_pairs
+* **benchmark_get_pairs**: Benchmark the performance of get_pairs
+* **create_test_datasets**: Create standardized test datasets for benchmarking
+
+#### Examples
+
+```bash
+# Create test datasets for benchmarking
+python bioinfo-toolkit.py create_test_datasets -c
+
+# Benchmark get_pairs implementations
+python bioinfo-toolkit.py test_get_pairs -v
+```
+
+## Utility Modules
+
+The toolkit includes several utility modules that provide common functionality:
+
+* **bioinfo_logger**: Standardized logging for bioinformatics scripts
+* **fastq_utils**: Utility functions for FASTQ file handling
+* **memory_tracker**: Track and analyze memory usage of Python scripts
 
 ## Testing
 
-The repository includes a comprehensive test suite to ensure code quality and functionality. The tests are organized into the following categories:
+The repository includes a comprehensive test suite to ensure code quality and functionality. The tests are organized into categories:
 
 - **Unit Tests**: Test individual functions and classes
 - **Integration Tests**: Test interactions between components
@@ -107,57 +169,72 @@ pytest tests/functional
 pytest tests/performance
 ```
 
-### Continuous Integration
-
-This repository uses GitHub Actions for continuous integration. Tests are automatically run on both Linux and Windows environments with different Python versions to ensure cross-platform compatibility.
-
-## Performance Benchmarking
-
-The toolkit includes benchmarking tools that allow you to compare the performance of different implementations:
-
-1. Create test datasets:
-   ```bash
-   python bioinfo-toolkit.py create_test_datasets -c
-   ```
-
-2. Run the benchmarks:
-   ```bash
-   python bioinfo-toolkit.py test_get_pairs
-   ```
-
-3. View detailed results including memory usage:
-   ```bash
-   python bioinfo-toolkit.py test_get_pairs -v
-   ```
-
-This will generate benchmark results comparing execution time and memory usage across different dataset sizes.
-
 ## Repository Structure
 
 ```
 bioinfo-toolkit/
-├── bioinfo-toolkit.py     # Main entry point
-├── run_tests.py           # Test runner script
-├── src/                   # Source code
-│   ├── scripts/           # Categorized scripts
-│   │   ├── fasta/         # FASTA processing scripts
-│   │   ├── fastq/         # FASTQ processing scripts
-│   │   ├── conversion/    # Format conversion scripts
-│   │   ├── tools/         # Utility tools
-│   │   └── benchmark/     # Benchmarking scripts
-│   └── utils/             # Utility modules
-├── data/                  # Data directory
-│   ├── test_data/         # Test datasets
-│   └── benchmarks/        # Benchmark results
-├── tests/                 # Test directory
-│   ├── unit/              # Unit tests
-│   ├── integration/       # Integration tests
-│   ├── functional/        # Functional tests
-│   └── performance/       # Performance tests
-├── requirements.txt       # Dependencies
-└── requirements-dev.txt   # Development dependencies
+├── bioinfo-toolkit.py      # Main entry point
+├── run_tests.py            # Test runner script
+├── src/                    # Source code
+│   ├── scripts/            # Categorized scripts
+│   │   ├── fasta/          # FASTA processing scripts
+│   │   │   ├── fasta_length_filter.py
+│   │   │   ├── fasta_n_filter.py
+│   │   │   ├── fasta_name_filter.py
+│   │   │   ├── fasta_length_histo.py
+│   │   │   ├── sort_fasta_by_length.py
+│   │   │   └── gener_sample_fasta.py
+│   │   ├── fastq/          # FASTQ processing scripts
+│   │   │   ├── get_pairs.py
+│   │   │   ├── get_pairs_v3.py
+│   │   │   ├── split_paired_fastq.py
+│   │   │   ├── fastq_umi_merge.py
+│   │   │   ├── fastq_name_filter.py
+│   │   │   └── gener_sample_fastq.py
+│   │   ├── conversion/     # Format conversion scripts
+│   │   │   └── fastq_to_fasta.py
+│   │   ├── tools/          # Utility tools
+│   │   │   ├── atomicblastplus.py
+│   │   │   └── script_template.py
+│   │   └── benchmark/      # Benchmarking scripts
+│   │       ├── test_get_pairs.py
+│   │       ├── benchmark_get_pairs.py
+│   │       └── create_test_datasets.py
+│   └── utils/              # Utility modules
+│       ├── bioinfo_logger.py
+│       ├── fastq_utils.py
+│       └── memory_tracker.py
+├── data/                   # Data directory
+│   ├── test_data/          # Test datasets
+│   └── benchmarks/         # Benchmark results
+├── tests/                  # Test directory
+│   ├── unit/               # Unit tests
+│   ├── integration/        # Integration tests
+│   ├── functional/         # Functional tests
+│   └── performance/        # Performance tests
+├── requirements.txt        # Dependencies
+└── requirements-dev.txt    # Development dependencies
 ```
+
+## Dependencies
+
+### Runtime Dependencies
+* psutil >= 5.9.0
+* pandas >= 1.3.0
+* matplotlib >= 3.5.0
+
+### Development Dependencies
+* pytest >= 7.0.0
+* pytest-cov >= 4.1.0
+* pytest-mock >= 3.10.0
+* flake8 >= 6.0.0
+* black >= 23.0.0
+* memory_profiler >= 0.61.0
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
 
 ## Contributors
 
-* Pierre Pericard (pierre.pericard@ed.univ-lille1.fr)
+* Pierre Pericard - Main developer and maintainer
