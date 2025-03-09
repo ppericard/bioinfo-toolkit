@@ -1,3 +1,5 @@
-"""Bioinfo-toolkit - A collection of Python scripts for bioinformatics analysis."""
+"""
+Bioinfo-toolkit - A collection of Python scripts for bioinformatics analysis.
+"""
 
-__version__ = "1.0.0" 
+__version__ = "0.1.0" 
