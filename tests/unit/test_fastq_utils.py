@@ -2,7 +2,7 @@
 
 import os
 import pytest
-from src.utils.fastq_utils import (
+from bioinfotoolkit.utils.fastq_utils import (
     read_fastq_records,
     extract_read_id,
     open_file
@@ -19,8 +19,9 @@ def test_extract_read_id():
     # Test with spaces in description
     assert extract_read_id("@read3 this is a description") == "read3"
     
-    # Test with no description
-    assert extract_read_id("@read4") == "read4"
+    # Test malformed read names
+    assert extract_read_id("read4 no @ symbol") == "read4"
+    assert extract_read_id("") == ""
 
 
 def test_read_fastq_records(sample_fastq_file):

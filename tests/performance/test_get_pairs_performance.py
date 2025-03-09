@@ -9,9 +9,9 @@ from pathlib import Path
 import random
 import string
 
-from src.utils.memory_tracker import MemoryTracker
-from src.scripts.fastq.get_pairs import get_pairs
-from src.scripts.fastq.get_pairs_v3 import get_pairs as get_pairs_v3
+from bioinfotoolkit.utils.memory_tracker import MemoryTracker
+from bioinfotoolkit.scripts.fastq.get_pairs import get_pairs
+from bioinfotoolkit.scripts.fastq.get_pairs_v3 import get_pairs as get_pairs_v3
 
 
 def generate_random_sequence(length):

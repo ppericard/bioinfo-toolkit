@@ -6,7 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from src.scripts.fastq.get_pairs import get_pairs
+from bioinfotoolkit.scripts.fastq.get_pairs import get_pairs
 
 
 def test_get_pairs_function(paired_fastq_files, temp_dir):
