@@ -1,0 +1,12 @@
+#!/usr/bin/env python3
+"""
+Bioinfo-toolkit - A collection of Python scripts for bioinformatics analysis.
+
+This script serves as an entry point to run the various tools in the toolkit.
+"""
+
+import sys
+from bioinfotoolkit.cli import main
+
+if __name__ == "__main__":
+    sys.exit(main()) 
