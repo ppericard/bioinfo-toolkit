@@ -68,12 +68,6 @@ bioinfo-toolkit
 
 * **script_template**: Template for creating new scripts for the toolkit
 
-### Benchmarking and Testing Tools
-
-* **test_get_pairs**: Test and compare different implementations of get_pairs
-* **benchmark_get_pairs**: Benchmark the performance of get_pairs
-* **create_test_datasets**: Create standardized test datasets for benchmarking
-
 ## Development
 
 ### Setting Up Development Environment
@@ -98,6 +92,33 @@ bioinfo-toolkit
    black src tests
    ```
 
+### Running Benchmarks
+
+To run benchmarks:
+
+```bash
+# Run all benchmarks
+python benchmarks/run_benchmarks.py --all
+
+# Run a specific benchmark
+python benchmarks/run_benchmarks.py benchmark_get_pairs
+
+# List available benchmarks
+python benchmarks/run_benchmarks.py
+```
+
+### Generating Test Data
+
+To generate test data for testing:
+
+```bash
+# Generate paired FASTQ test data
+python tests/utils/create_test_datasets.py fastq -n 1000 -p 90
+
+# Generate FASTA test data
+python tests/utils/create_test_datasets.py fasta -n 100
+```
+
 ## Repository Structure
 
 ```
@@ -111,15 +132,21 @@ bioinfo-toolkit/
 │       │   ├── fasta/     # FASTA processing scripts
 │       │   ├── fastq/     # FASTQ processing scripts
 │       │   ├── conversion/# Format conversion scripts
-│       │   ├── tools/     # Utility tools
-│       │   └── benchmark/ # Benchmarking scripts
+│       │   └── tools/     # Utility tools
 │       ├── utils/         # Utility modules
 │       └── deprecated/    # Deprecated tools and scripts
 ├── tests/                 # Test directory
+│   ├── utils/             # Test utilities
+│   │   ├── test_data_generator.py  # Generates test data
+│   │   └── create_test_datasets.py # CLI for generating test data
 │   ├── unit/              # Unit tests
 │   ├── integration/       # Integration tests
 │   ├── functional/        # Functional tests
 │   └── performance/       # Performance tests
+├── benchmarks/            # Benchmarking scripts
+│   ├── benchmark_get_pairs.py  # Benchmark for get_pairs
+│   ├── test_get_pairs.py       # Performance tests for get_pairs
+│   └── run_benchmarks.py       # Benchmark runner
 ├── data/                  # Data directory
 │   ├── test_data/         # Test datasets
 │   └── benchmarks/        # Benchmark data and results

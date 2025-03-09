@@ -22,6 +22,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from typing import Dict, List, Tuple, Optional
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from tests.utils.test_data_generator import create_paired_fastq_files
+
 # Path to implementations
 ORIGINAL_SCRIPT = 'bin/get_pairs.py.original'
 NEW_SCRIPT = 'bin/get_pairs.py'

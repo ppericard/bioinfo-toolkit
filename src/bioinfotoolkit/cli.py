@@ -19,8 +19,7 @@ def list_available_scripts():
         'fasta': 'FASTA processing tools',
         'fastq': 'FASTQ processing tools',
         'conversion': 'File format conversion tools',
-        'tools': 'Utility tools',
-        'benchmark': 'Benchmarking and testing tools'
+        'tools': 'Utility tools'
     }
     
     print("Available scripts in bioinfo-toolkit:")
@@ -66,7 +65,7 @@ def main():
         return 0
     
     # Try to find the script in the different categories
-    script_categories = ['fasta', 'fastq', 'conversion', 'tools', 'benchmark']
+    script_categories = ['fasta', 'fastq', 'conversion', 'tools']
     script_path = None
     
     package_path = Path(__file__).parent / "scripts"
