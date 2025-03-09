@@ -45,9 +45,13 @@ import sys
 import argparse
 import logging
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Union
 
-from bioinfotoolkit.scripts.fastq.get_pairs_implementations import IMPLEMENTATIONS
+# Import implementations
+from bioinfotoolkit.scripts.fastq.get_pairs_v1 import GetPairsV1
+from bioinfotoolkit.scripts.fastq.get_pairs_v2 import GetPairsV2
+from bioinfotoolkit.scripts.fastq.get_pairs_v3 import GetPairsV3
+from bioinfotoolkit.scripts.fastq.get_pairs_common import ensure_directory
 
 # Configure logging
 logging.basicConfig(
@@ -57,198 +61,145 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Implementation mapping
+IMPLEMENTATIONS = {
+    'v1': GetPairsV1,
+    'v2': GetPairsV2,
+    'v3': GetPairsV3
+}
+
 def get_pairs(
-    left_file: str,
-    right_file: str,
-    output_dir: str,
+    left_file: Union[str, Path],
+    right_file: Union[str, Path],
+    output_dir: Union[str, Path],
     implementation: str = 'v2',  # Default to v2 (improved in-memory implementation)
     compress: bool = False,
     verbose: bool = False,
     **kwargs
 ) -> Dict[str, Dict[str, int]]:
     """
-    Get separately paired reads and singletons from two FASTQ files.
+    Process paired-end FASTQ files to separate paired reads and singletons.
     
     Args:
-        left_file: Path to the left (R1) FASTQ file
-        right_file: Path to the right (R2) FASTQ file
-        output_dir: Directory to write output files
+        left_file: Path to the left reads FASTQ file
+        right_file: Path to the right reads FASTQ file
+        output_dir: Directory to write the output files
         implementation: Which implementation to use ('v1', 'v2', or 'v3')
-        compress: Whether to compress output files
-        verbose: Whether to print verbose output
+        compress: Whether to compress the output files
+        verbose: Whether to print verbose progress information
         **kwargs: Additional arguments to pass to the implementation
         
     Returns:
-        Dictionary with counts of paired and singleton reads
+        Dictionary with statistics about the processing
     """
-    # Convert paths to Path objects
+    # Convert to Path objects
     left_path = Path(left_file)
     right_path = Path(right_file)
     output_path = Path(output_dir)
     
-    # Check if files exist
-    if not left_path.exists():
-        raise FileNotFoundError(f"Left file not found: {left_file}")
+    # Create output directory if it doesn't exist
+    ensure_directory(output_path)
     
-    if not right_path.exists():
-        raise FileNotFoundError(f"Right file not found: {right_file}")
-    
-    # Check if implementation exists
+    # Get the implementation
     if implementation not in IMPLEMENTATIONS:
-        raise ValueError(f"Unknown implementation: {implementation}. Available: {', '.join(IMPLEMENTATIONS.keys())}")
+        logger.error(f"Unknown implementation: {implementation}")
+        logger.error(f"Available implementations: {', '.join(IMPLEMENTATIONS.keys())}")
+        return {}
     
-    # Get the implementation class
-    impl_class = IMPLEMENTATIONS[implementation]
+    implementation_class = IMPLEMENTATIONS[implementation]
+    logger.info(f"Using implementation: {implementation}")
     
     # Run the implementation
-    if verbose:
-        logger.info(f"Using implementation: {implementation}")
-    
-    counts = impl_class.process(
-        left_path,
-        right_path,
-        output_path,
-        compress=compress,
-        verbose=verbose,
-        **kwargs
+    stats = implementation_class.process(
+        left_path, right_path, output_path, 
+        compress=compress, verbose=verbose, **kwargs
     )
     
-    # Return the results
-    return {
-        'counts': counts,
-        'files': {
-            'paired_1': str(output_path / f"paired_1.fastq{'.gz' if compress else ''}"),
-            'paired_2': str(output_path / f"paired_2.fastq{'.gz' if compress else ''}"),
-            'singleton_1': str(output_path / f"singleton_1.fastq{'.gz' if compress else ''}"),
-            'singleton_2': str(output_path / f"singleton_2.fastq{'.gz' if compress else ''}")
-        }
-    }
+    return {'stats': stats}
 
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Get separately paired reads and singletons from two FASTQ files",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        description="Get separately paired reads and singletons from two FASTQ files (left and right)"
     )
     
     # Input files
     input_group = parser.add_argument_group('Input')
-    input_group.add_argument(
-        '-l', '--left',
-        dest='left_file',
-        required=True,
-        help='Left FASTQ file'
+    input_files = input_group.add_mutually_exclusive_group(required=True)
+    input_files.add_argument(
+        'input_files', nargs='*', metavar='file', 
+        help='Input FASTQ files (left and right)'
     )
-    
-    input_group.add_argument(
-        '-r', '--right',
-        dest='right_file',
-        required=True,
-        help='Right FASTQ file'
+    input_files.add_argument(
+        '-l', '--left', dest='left_file',
+        help='Left reads FASTQ file'
+    )
+    input_files.add_argument(
+        '-r', '--right', dest='right_file',
+        help='Right reads FASTQ file'
     )
     
     # Output options
     output_group = parser.add_argument_group('Output')
     output_group.add_argument(
-        '-o', '--output-dir',
-        dest='output_dir',
-        default='get_pairs_output',
-        help='Output directory'
+        '-o', '--outdir', dest='output_dir', default='get_pairs_output',
+        help='Output directory (default: get_pairs_output)'
     )
-    
     output_group.add_argument(
-        '-z', '--compress',
-        action='store_true',
+        '-z', '--gzip', dest='compress', action='store_true',
         help='Compress output files with gzip'
     )
     
-    # Implementation options
+    # Implementation selection
     impl_group = parser.add_argument_group('Implementation')
     impl_group.add_argument(
-        '-i', '--implementation',
-        choices=list(IMPLEMENTATIONS.keys()),
-        default='v2',
-        help='Which implementation to use'
+        '-i', '--implementation', dest='implementation', default='v2',
+        choices=IMPLEMENTATIONS.keys(),
+        help='Implementation to use (default: v2)'
     )
     
-    # V3-specific options
-    v3_group = parser.add_argument_group('V3 Implementation Options')
-    v3_group.add_argument(
-        '--chunk-size',
-        type=int,
-        default=1000000,
-        help='Number of reads to process at once (V3 only)'
+    # Logging options
+    log_group = parser.add_argument_group('Logging')
+    log_group.add_argument(
+        '-v', '--verbose', dest='verbose', action='store_true',
+        help='Print verbose progress information'
     )
     
-    v3_group.add_argument(
-        '--temp-dir',
-        help='Directory for temporary files (V3 only)'
-    )
+    args = parser.parse_args()
     
-    # Other options
-    other_group = parser.add_argument_group('Other')
-    other_group.add_argument(
-        '-v', '--verbose',
-        action='store_true',
-        help='Print verbose output'
-    )
+    # Handle positional arguments if provided
+    if args.input_files and len(args.input_files) >= 2:
+        args.left_file = args.input_files[0]
+        args.right_file = args.input_files[1]
     
-    # Galaxy compatibility
-    other_group.add_argument(
-        '-g', '--galaxy-mode',
-        action='store_true',
-        help='Galaxy mode (for compatibility)'
-    )
+    # Validate input files
+    if not args.left_file or not args.right_file:
+        parser.error('Both left and right FASTQ files are required')
     
-    # Parse positional arguments if provided
-    if len(sys.argv) == 3 and not sys.argv[1].startswith('-') and not sys.argv[2].startswith('-'):
-        sys.argv = [sys.argv[0], '-l', sys.argv[1], '-r', sys.argv[2]]
-    
-    return parser.parse_args()
+    return args
 
 def main() -> int:
-    """Main function."""
+    """Main entry point for the script."""
     args = parse_args()
     
     try:
-        # Create output directory if it doesn't exist
-        output_dir = Path(args.output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Prepare kwargs for the implementation
-        kwargs = {}
-        if args.implementation == 'v3':
-            kwargs['chunk_size'] = args.chunk_size
-            if args.temp_dir:
-                kwargs['temp_dir'] = Path(args.temp_dir)
-        
-        # Run get_pairs
-        result = get_pairs(
+        results = get_pairs(
             args.left_file,
             args.right_file,
             args.output_dir,
             implementation=args.implementation,
             compress=args.compress,
-            verbose=args.verbose,
-            **kwargs
+            verbose=args.verbose
         )
         
-        # Print summary
-        counts = result['counts']
-        print("\nSummary:")
-        print(f"  Paired reads: {counts['paired']}")
-        print(f"  Singleton reads (left): {counts['singleton_1']}")
-        print(f"  Singleton reads (right): {counts['singleton_2']}")
-        print(f"  Total reads (left): {counts['total_1']}")
-        print(f"  Total reads (right): {counts['total_2']}")
+        if not results:
+            return 1
         
-        # Print output files
-        files = result['files']
-        print("\nOutput files:")
-        print(f"  Paired reads (left): {files['paired_1']}")
-        print(f"  Paired reads (right): {files['paired_2']}")
-        print(f"  Singleton reads (left): {files['singleton_1']}")
-        print(f"  Singleton reads (right): {files['singleton_2']}")
+        stats = results['stats']
+        logger.info("Processing complete!")
+        logger.info(f"Paired reads: {stats['paired']}")
+        logger.info(f"Left singletons: {stats['left_singletons']}")
+        logger.info(f"Right singletons: {stats['right_singletons']}")
         
         return 0
     
