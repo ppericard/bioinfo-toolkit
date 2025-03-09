@@ -27,23 +27,4 @@ def test_script_template():
     # Just verify the help output contains some expected text
     assert "usage:" in result.stdout
 
-
-def test_atomicblastplus_help():
-    """Test the atomicblastplus script help."""
-    # Get script path
-    script_path = Path(__file__).parent.parent.parent / "src" / "scripts" / "tools" / "atomicblastplus.py"
-    
-    # Run the script with help option to verify it works
-    cmd = [
-        sys.executable,
-        str(script_path),
-        "-h"
-    ]
-    
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    
-    # Check that the script executed successfully
-    assert result.returncode == 0
-    # Just verify the help output contains some expected text
-    assert "usage:" in result.stdout
-    assert "atomicblastplus" in result.stdout 
+# The test for atomicblastplus has been removed as the script has been deprecated and archived 
