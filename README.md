@@ -64,6 +64,53 @@ Filter FASTA sequences by length:
 python bioinfo-toolkit.py fasta_length_filter -i input.fasta -o output.fasta -m 300 -M 1000
 ```
 
+## Testing
+
+The repository includes a comprehensive test suite to ensure code quality and functionality. The tests are organized into the following categories:
+
+- **Unit Tests**: Test individual functions and classes
+- **Integration Tests**: Test interactions between components
+- **Functional Tests**: Test complete workflows
+- **Performance Tests**: Benchmark performance of different implementations
+
+### Running Tests
+
+You can run the tests using the included `run_tests.py` script:
+
+```bash
+# Run all tests
+python run_tests.py
+
+# Run specific test categories
+python run_tests.py --unit
+python run_tests.py --integration
+python run_tests.py --functional
+python run_tests.py --performance
+
+# Generate code coverage report
+python run_tests.py --coverage
+```
+
+Alternatively, you can use pytest directly:
+
+```bash
+# Install development dependencies
+pip install -r requirements-dev.txt
+
+# Run all tests
+pytest
+
+# Run specific test categories
+pytest tests/unit
+pytest tests/integration
+pytest tests/functional
+pytest tests/performance
+```
+
+### Continuous Integration
+
+This repository uses GitHub Actions for continuous integration. Tests are automatically run on both Linux and Windows environments with different Python versions to ensure cross-platform compatibility.
+
 ## Performance Benchmarking
 
 The toolkit includes benchmarking tools that allow you to compare the performance of different implementations:
@@ -90,6 +137,7 @@ This will generate benchmark results comparing execution time and memory usage a
 ```
 bioinfo-toolkit/
 ├── bioinfo-toolkit.py     # Main entry point
+├── run_tests.py           # Test runner script
 ├── src/                   # Source code
 │   ├── scripts/           # Categorized scripts
 │   │   ├── fasta/         # FASTA processing scripts
@@ -101,8 +149,13 @@ bioinfo-toolkit/
 ├── data/                  # Data directory
 │   ├── test_data/         # Test datasets
 │   └── benchmarks/        # Benchmark results
-├── tests/                 # Test scripts
-└── requirements.txt       # Dependencies
+├── tests/                 # Test directory
+│   ├── unit/              # Unit tests
+│   ├── integration/       # Integration tests
+│   ├── functional/        # Functional tests
+│   └── performance/       # Performance tests
+├── requirements.txt       # Dependencies
+└── requirements-dev.txt   # Development dependencies
 ```
 
 ## Contributors
