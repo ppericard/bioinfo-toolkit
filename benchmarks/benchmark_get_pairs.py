@@ -6,6 +6,11 @@ Benchmark Get Pairs
 
 Description: Compare the performance of different implementations of get_pairs.py
              using synthetic test datasets.
+
+This script benchmarks three implementations:
+- v1: Original implementation from 2012-2016 (simple, minimal dependencies)
+- v2: Improved implementation using in-memory dictionaries
+- v3: Memory-optimized implementation using disk-based approach
 """
 
 import os

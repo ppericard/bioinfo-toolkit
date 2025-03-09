@@ -8,8 +8,8 @@ This module contains different implementations of the get_pairs algorithm
 for processing paired-end FASTQ files.
 
 Implementations:
-- v1: Original implementation using in-memory dictionaries
-- v2: Intermediate implementation (placeholder for future optimization)
+- v1: Original implementation from 2012-2016 (simple, minimal dependencies)
+- v2: Improved implementation using in-memory dictionaries
 - v3: Memory-optimized implementation using disk-based approach
 
 Each implementation provides the same interface and functionality but with
@@ -55,9 +55,152 @@ def write_fastq_record(file_handle: TextIO, header: str, sequence: str, plus_lin
     """Write a FASTQ record to a file."""
     file_handle.write(f"{header}\n{sequence}\n{plus_line}\n{quality}\n")
 
-# Implementation v1: Original in-memory implementation
+# Implementation v1: Original implementation from 2012-2016
 class GetPairsV1:
-    """Original implementation of get_pairs using in-memory dictionaries."""
+    """
+    Original implementation of get_pairs from 2012-2016.
+    
+    This is a simple implementation with minimal dependencies, using sets
+    to find common read IDs between two files.
+    """
+    
+    @staticmethod
+    def process(left_file: Path, right_file: Path, output_dir: Path, 
+                compress: bool = False, verbose: bool = False) -> Dict[str, int]:
+        """
+        Process paired-end FASTQ files and separate them into pairs and singletons.
+        
+        Args:
+            left_file: Path to the left (R1) FASTQ file
+            right_file: Path to the right (R2) FASTQ file
+            output_dir: Directory to write output files
+            compress: Whether to compress output files
+            verbose: Whether to print verbose output
+            
+        Returns:
+            Dictionary with counts of paired and singleton reads
+        """
+        # Ensure output directory exists
+        ensure_directory(output_dir)
+        
+        # Output file paths
+        paired_1_path = output_dir / "paired_1.fastq"
+        paired_2_path = output_dir / "paired_2.fastq"
+        singleton_1_path = output_dir / "singleton_1.fastq"
+        singleton_2_path = output_dir / "singleton_2.fastq"
+        
+        if compress:
+            paired_1_path = paired_1_path.with_suffix(".fastq.gz")
+            paired_2_path = paired_2_path.with_suffix(".fastq.gz")
+            singleton_1_path = singleton_1_path.with_suffix(".fastq.gz")
+            singleton_2_path = singleton_2_path.with_suffix(".fastq.gz")
+        
+        # Extract read IDs from both files
+        left_ids = []
+        right_ids = []
+        
+        # Process left file
+        if verbose:
+            logger.info(f"Processing left file: {left_file}")
+        
+        read_count = 0
+        with open_file(left_file) as f:
+            line_count = 0
+            for line in f:
+                line = line.strip()
+                if line:
+                    line_count += 1
+                    if line_count % 4 == 1:  # Header line
+                        read_id = extract_read_id(line)
+                        left_ids.append(read_id)
+                        read_count += 1
+                        if verbose and read_count % 100000 == 0:
+                            logger.info(f"Processed {read_count:,} reads from left file")
+        
+        if verbose:
+            logger.info(f"Found {len(left_ids):,} reads in left file")
+        
+        # Process right file
+        if verbose:
+            logger.info(f"Processing right file: {right_file}")
+        
+        read_count = 0
+        with open_file(right_file) as f:
+            line_count = 0
+            for line in f:
+                line = line.strip()
+                if line:
+                    line_count += 1
+                    if line_count % 4 == 1:  # Header line
+                        read_id = extract_read_id(line)
+                        right_ids.append(read_id)
+                        read_count += 1
+                        if verbose and read_count % 100000 == 0:
+                            logger.info(f"Processed {read_count:,} reads from right file")
+        
+        if verbose:
+            logger.info(f"Found {len(right_ids):,} reads in right file")
+        
+        # Find paired and singleton reads
+        not_common = set(left_ids) ^ set(right_ids)
+        
+        # Process and write output files
+        for input_file, output_paired, output_singleton in [
+            (left_file, paired_1_path, singleton_1_path),
+            (right_file, paired_2_path, singleton_2_path)
+        ]:
+            if verbose:
+                logger.info(f"Writing output for {input_file}")
+            
+            with open_file(output_paired, 'w') as paired_out, open_file(output_singleton, 'w') as singleton_out:
+                with open_file(input_file) as f:
+                    line_count = 0
+                    record = []
+                    paired = False
+                    
+                    for line in f:
+                        line = line.strip()
+                        if line:
+                            line_count += 1
+                            record.append(line)
+                            
+                            if line_count % 4 == 1:  # Header line
+                                read_id = extract_read_id(line)
+                                paired = read_id not in not_common
+                            
+                            if line_count % 4 == 0:  # End of record
+                                if paired:
+                                    for l in record:
+                                        paired_out.write(f"{l}\n")
+                                else:
+                                    for l in record:
+                                        singleton_out.write(f"{l}\n")
+                                record = []
+        
+        # Count paired and singleton reads
+        paired_count = len(set(left_ids) & set(right_ids))
+        left_singleton_count = len(set(left_ids) - set(right_ids))
+        right_singleton_count = len(set(right_ids) - set(left_ids))
+        
+        # Return counts
+        counts = {
+            'paired': paired_count,
+            'singleton_1': left_singleton_count,
+            'singleton_2': right_singleton_count,
+            'total_1': len(left_ids),
+            'total_2': len(right_ids)
+        }
+        
+        if verbose:
+            logger.info(f"Paired reads: {counts['paired']}")
+            logger.info(f"Singleton reads (left): {counts['singleton_1']}")
+            logger.info(f"Singleton reads (right): {counts['singleton_2']}")
+        
+        return counts
+
+# Implementation v2: Improved implementation using in-memory dictionaries
+class GetPairsV2:
+    """Improved implementation of get_pairs using in-memory dictionaries."""
     
     @staticmethod
     def process(left_file: Path, right_file: Path, output_dir: Path, 
@@ -174,36 +317,6 @@ class GetPairsV1:
             logger.info(f"Singleton reads (right): {counts['singleton_2']}")
         
         return counts
-
-# Implementation v2: Placeholder for an intermediate implementation
-class GetPairsV2:
-    """
-    Intermediate implementation of get_pairs.
-    
-    This is a placeholder for a future implementation that might offer
-    a balance between memory usage and performance.
-    """
-    
-    @staticmethod
-    def process(left_file: Path, right_file: Path, output_dir: Path, 
-                compress: bool = False, verbose: bool = False) -> Dict[str, int]:
-        """
-        Process paired-end FASTQ files and separate them into pairs and singletons.
-        
-        This is currently just a wrapper around the V1 implementation.
-        
-        Args:
-            left_file: Path to the left (R1) FASTQ file
-            right_file: Path to the right (R2) FASTQ file
-            output_dir: Directory to write output files
-            compress: Whether to compress output files
-            verbose: Whether to print verbose output
-            
-        Returns:
-            Dictionary with counts of paired and singleton reads
-        """
-        # For now, just use the V1 implementation
-        return GetPairsV1.process(left_file, right_file, output_dir, compress, verbose)
 
 # Implementation v3: Memory-optimized implementation
 class GetPairsV3:

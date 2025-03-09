@@ -11,6 +11,11 @@ Examples:
   get_pairs.py -l file1.fastq -r file2.fastq -o output_dir
   get_pairs.py file1.fastq file2.fastq
 
+Available implementations:
+  - v1: Original implementation from 2012-2016 (simple, minimal dependencies)
+  - v2: Improved implementation using in-memory dictionaries
+  - v3: Memory-optimized implementation using disk-based approach
+
 -----------------------------------------------------------------------
 
 Author: This software is written and maintained by Pierre Pericard
@@ -56,7 +61,7 @@ def get_pairs(
     left_file: str,
     right_file: str,
     output_dir: str,
-    implementation: str = 'v1',
+    implementation: str = 'v2',  # Default to v2 (improved in-memory implementation)
     compress: bool = False,
     verbose: bool = False,
     **kwargs
@@ -162,7 +167,7 @@ def parse_args() -> argparse.Namespace:
     impl_group.add_argument(
         '-i', '--implementation',
         choices=list(IMPLEMENTATIONS.keys()),
-        default='v1',
+        default='v2',
         help='Which implementation to use'
     )
     
