@@ -71,4 +71,8 @@ Desktop.ini
 
 # Benchmark results (uncomment if you want to ignore them)
 # benchmark_results/
-# benchmark_results.json 
+# benchmark_results.json
+
+# Tool-specific directories
+.cursor/
+.specstory/ 
