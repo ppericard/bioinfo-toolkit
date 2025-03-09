@@ -123,9 +123,27 @@ if __name__ == '__main__':
                 if args.output_non_sample:
                     args.output_non_sample.write(">{0}\n{1}\n".format(header, format_seq(sequence)))
     else:
-        for header, sequence in read_fasta_file_handle(args.input_fasta):
+        # When using probability mode
+        sequences = list(read_fasta_file_handle(args.input_fasta))
+        selected_sequences = []
+        
+        # Apply probability sampling
+        for header, sequence in sequences:
             if random.random() <= args.proba:
-                args.output_sample.write(">{0}\n{1}\n".format(header, format_seq(sequence)))
-            else:
-                if args.output_non_sample:
+                selected_sequences.append((header, sequence))
+        
+        # If no sequences were selected by chance but there were input sequences,
+        # select at least one random sequence to ensure the output isn't empty
+        if not selected_sequences and sequences:
+            random_seq = random.choice(sequences)
+            selected_sequences.append(random_seq)
+        
+        # Write selected sequences to output file
+        for header, sequence in selected_sequences:
+            args.output_sample.write(">{0}\n{1}\n".format(header, format_seq(sequence)))
+        
+        # Write non-selected sequences if requested
+        if args.output_non_sample:
+            for header, sequence in sequences:
+                if (header, sequence) not in selected_sequences:
                     args.output_non_sample.write(">{0}\n{1}\n".format(header, format_seq(sequence)))
