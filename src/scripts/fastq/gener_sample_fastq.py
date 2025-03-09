@@ -72,6 +72,21 @@ def read_fastq_file_handle(fastq_file_handle):
     # Close input file
     fastq_file_handle.close()
 
+def count_sequences_in_fastq(fastq_file_path):
+    """
+    Count the number of sequences in a FASTQ file
+    """
+    count = 0
+    with open(fastq_file_path, 'r') as f:
+        line_count = 0
+        for line in f:
+            line = line.strip()
+            if line:
+                line_count += 1
+                if line_count % 4 == 1:  # Header line
+                    count += 1
+    return count
+
 if __name__ == '__main__':
 
     random.seed(os.urandom(128))
@@ -99,7 +114,8 @@ if __name__ == '__main__':
     seq_count = 0
 
     if args.seq_nb:
-        input_seq_nb = int(subprocess.check_output("wc -l {0}".format(args.input_fastq.name), shell=True).split()[0].strip()) / 4
+        input_seq_nb = count_sequences_in_fastq(args.input_fastq.name)
+        args.input_fastq.seek(0)  # Reset file pointer to beginning
         bool_list = [False for i in range(input_seq_nb)]
         for random_index in random.sample([i for i in range(input_seq_nb)], args.seq_nb):
             bool_list[random_index] = True

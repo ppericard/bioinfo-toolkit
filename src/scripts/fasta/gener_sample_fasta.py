@@ -76,6 +76,17 @@ def format_seq(seq, linereturn=80):
         buff.append("{0}\n".format(seq[i:(i + linereturn)]))
     return ''.join(buff).rstrip()
 
+def count_sequences_in_fasta(fasta_file_path):
+    """
+    Count the number of sequences in a FASTA file
+    """
+    count = 0
+    with open(fasta_file_path, 'r') as f:
+        for line in f:
+            if line.startswith('>'):
+                count += 1
+    return count
+
 if __name__ == '__main__':
 
     random.seed(os.urandom(128))
@@ -100,7 +111,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.seq_nb:
-        input_seq_nb = int(subprocess.check_output("grep -c '>' {0}".format(args.input_fasta.name), shell=True).strip())
+        input_seq_nb = count_sequences_in_fasta(args.input_fasta.name)
+        args.input_fasta.seek(0)  # Reset file pointer to beginning
         bool_list = [False for i in range(input_seq_nb)]
         for random_index in random.sample([i for i in range(input_seq_nb)], args.seq_nb):
             bool_list[random_index] = True
