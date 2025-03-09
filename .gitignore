@@ -89,4 +89,7 @@ Desktop.ini
 *.log
 
 # Local configuration
-.local/ 
+.local/
+
+# Editor-specific files
+bioinfo-toolkit.code-workspace 

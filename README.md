@@ -113,14 +113,18 @@ bioinfo-toolkit/
 │       │   ├── conversion/# Format conversion scripts
 │       │   ├── tools/     # Utility tools
 │       │   └── benchmark/ # Benchmarking scripts
-│       └── utils/         # Utility modules
+│       ├── utils/         # Utility modules
+│       └── deprecated/    # Deprecated tools and scripts
 ├── tests/                 # Test directory
 │   ├── unit/              # Unit tests
 │   ├── integration/       # Integration tests
 │   ├── functional/        # Functional tests
 │   └── performance/       # Performance tests
-└── data/                  # Data directory
-    └── test_data/         # Test datasets
+├── data/                  # Data directory
+│   ├── test_data/         # Test datasets
+│   └── benchmarks/        # Benchmark data and results
+└── .github/               # GitHub Actions workflows
+    └── workflows/         # CI/CD configuration
 ```
 
 ## License
